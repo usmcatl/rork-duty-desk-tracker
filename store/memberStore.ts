@@ -5,43 +5,41 @@ import { Member } from '@/types/member';
 
 interface MemberState {
   members: Member[];
-  addMember: (member: Omit<Member, 'id'>) => string;
+  addMember: (memberData: Omit<Member, 'id'>) => string;
   updateMember: (member: Member) => void;
   removeMember: (id: string) => void;
   getMemberById: (id: string) => Member | undefined;
-  getMemberByMemberId: (memberId: string) => Member | undefined;
-  importMembers: (members: Omit<Member, 'id'>[]) => void;
-  clearAllMembers: () => void;
+  setMembers: (members: Member[]) => void;
+  clearAllData: () => void;
 }
 
 // Sample data for the app
 const sampleMembers: Member[] = [
   {
     id: '1',
-    memberId: 'M001',
     name: 'John Smith',
-    phone: '555-123-4567',
+    memberId: 'MED001',
+    phone: '+1 (555) 123-4567',
     email: 'john.smith@example.com',
-    address: '123 Main St, Lake Chapala',
-    joinDate: new Date('2020-03-15'),
   },
   {
     id: '2',
-    memberId: 'M002',
     name: 'Maria Garcia',
-    phone: '555-987-6543',
+    memberId: 'MED002',
+    phone: '+1 (555) 987-6543',
     email: 'maria.garcia@example.com',
-    address: '456 Oak Ave, Lake Chapala',
-    notes: 'Volunteer coordinator',
-    joinDate: new Date('2019-07-22'),
   },
   {
     id: '3',
-    memberId: 'M003',
-    name: 'Robert Johnson',
-    phone: '555-456-7890',
-    address: '789 Pine Rd, Lake Chapala',
-    joinDate: new Date('2021-01-10'),
+    name: 'David Johnson',
+    memberId: 'MED003',
+    phone: '+1 (555) 456-7890',
+  },
+  {
+    id: '4',
+    name: 'Sarah Wilson',
+    memberId: 'MED004',
+    email: 'sarah.wilson@example.com',
   },
 ];
 
@@ -50,17 +48,17 @@ export const useMemberStore = create<MemberState>()(
     (set, get) => ({
       members: sampleMembers,
       
-      addMember: (newMember) => {
+      addMember: (memberData) => {
         const id = Date.now().toString();
+        const newMember: Member = {
+          ...memberData,
+          id,
+        };
+        
         set((state) => ({
-          members: [
-            ...state.members,
-            {
-              ...newMember,
-              id,
-            },
-          ],
+          members: [...state.members, newMember],
         }));
+        
         return id;
       },
       
@@ -78,23 +76,14 @@ export const useMemberStore = create<MemberState>()(
         return get().members.find(member => member.id === id);
       },
       
-      getMemberByMemberId: (memberId) => {
-        return get().members.find(member => member.memberId === memberId);
+      setMembers: (members) => {
+        set({ members });
       },
       
-      importMembers: (newMembers) => {
-        const membersWithIds = newMembers.map(member => ({
-          ...member,
-          id: Date.now() + Math.random().toString(36).substring(2, 9),
-        }));
-        
-        set((state) => ({
-          members: [...state.members, ...membersWithIds],
-        }));
-      },
-      
-      clearAllMembers: () => {
-        set({ members: [] });
+      clearAllData: () => {
+        set({
+          members: [],
+        });
       },
     }),
     {

@@ -83,21 +83,25 @@ export default function AddPackageScreen() {
       return;
     }
     
-    const memberId = addMember({
-      name: newMemberName.trim(),
-      memberId: `PKG${Date.now()}`,
-      phone: newMemberPhone.trim() || undefined,
-      email: newMemberEmail.trim() || undefined,
-    });
-    
-    if (memberId) {
-      setSelectedMemberId(memberId);
-      setRecipientName(newMemberName.trim());
-      setShowNewMemberForm(false);
-      setNewMemberName('');
-      setNewMemberPhone('');
-      setNewMemberEmail('');
-    } else {
+    try {
+      const memberId = addMember({
+        name: newMemberName.trim(),
+        memberId: `PKG${Date.now()}`,
+        phone: newMemberPhone.trim() || undefined,
+        email: newMemberEmail.trim() || undefined,
+      });
+      
+      if (memberId) {
+        setSelectedMemberId(memberId);
+        setRecipientName(newMemberName.trim());
+        setShowNewMemberForm(false);
+        setNewMemberName('');
+        setNewMemberPhone('');
+        setNewMemberEmail('');
+      } else {
+        Alert.alert('Error', 'Failed to create member. Please try again.');
+      }
+    } catch (error) {
       Alert.alert('Error', 'Failed to create member. Please try again.');
     }
   };
