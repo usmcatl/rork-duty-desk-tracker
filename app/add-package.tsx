@@ -88,16 +88,12 @@ export default function AddPackageScreen() {
       
       const memberId = addMember(memberData);
       
-      if (memberId) {
-        setSelectedMemberId(memberId);
-        setRecipientName(newMemberName.trim());
-        setShowNewMemberForm(false);
-        setNewMemberName('');
-        setNewMemberPhone('');
-        setNewMemberEmail('');
-      } else {
-        Alert.alert('Error', 'Failed to create member. Please try again.');
-      }
+      setSelectedMemberId(memberId);
+      setRecipientName(newMemberName.trim());
+      setShowNewMemberForm(false);
+      setNewMemberName('');
+      setNewMemberPhone('');
+      setNewMemberEmail('');
     } catch (error) {
       Alert.alert('Error', 'Failed to create member. Please try again.');
     }
@@ -277,10 +273,8 @@ export default function AddPackageScreen() {
                         selectedMemberId === member.id && styles.selectedMemberItem
                       ]}
                       onPress={() => {
-                        if (member.id) {
-                          setSelectedMemberId(member.id);
-                          setRecipientName(member.name);
-                        }
+                        setSelectedMemberId(member.id);
+                        setRecipientName(member.name);
                       }}
                     >
                       <User size={20} color={Colors.light.primary} />

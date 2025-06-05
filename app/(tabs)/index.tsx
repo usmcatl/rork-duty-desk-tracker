@@ -7,7 +7,7 @@ import { usePackageStore } from '@/store/packageStore';
 import { useMemberStore } from '@/store/memberStore';
 import EquipmentNameplate from '@/components/EquipmentNameplate';
 import PackageCard from '@/components/PackageCard';
-import { Plus, Package, CheckSquare, Search, User, Users, ChevronRight, X, Package2, Clock } from 'lucide-react-native';
+import { Plus, Package, CheckSquare, Search, User, Users, ChevronRight, X, Package2, Clock, UserPlus } from 'lucide-react-native';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -50,6 +50,10 @@ export default function DashboardScreen() {
   
   const handleAddPackage = () => {
     router.push('/add-package');
+  };
+  
+  const handleAddMember = () => {
+    router.push('/add-member');
   };
   
   const handleMemberPress = (id: string) => {
@@ -324,6 +328,13 @@ export default function DashboardScreen() {
       </ScrollView>
       
       <View style={styles.fabContainer}>
+        <TouchableOpacity 
+          style={[styles.fab, styles.tertiaryFab]}
+          onPress={handleAddMember}
+        >
+          <UserPlus size={20} color="#fff" />
+        </TouchableOpacity>
+        
         <TouchableOpacity 
           style={[styles.fab, styles.secondaryFab]}
           onPress={handleAddPackage}
@@ -614,6 +625,13 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     backgroundColor: Colors.light.secondary,
+    shadowColor: Colors.light.shadow,
+  },
+  tertiaryFab: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#6B7280',
     shadowColor: Colors.light.shadow,
   },
 });
