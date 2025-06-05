@@ -92,6 +92,19 @@ function RootLayoutNav() {
               }} 
             />
             <Stack.Screen 
+              name="package/[id]" 
+              options={{ 
+                title: "Package Details",
+              }} 
+            />
+            <Stack.Screen 
+              name="add-package" 
+              options={{ 
+                title: "Add New Package",
+                presentation: "modal",
+              }} 
+            />
+            <Stack.Screen 
               name="member/[id]" 
               options={{ 
                 title: "Member Details",

@@ -1,7 +1,7 @@
 import React from "react";
 import { Tabs } from "expo-router";
 import Colors from "@/constants/colors";
-import { Home, Package, CheckSquare, Settings, Users } from "lucide-react-native";
+import { Home, Package, CheckSquare, Settings, Users, Package2 } from "lucide-react-native";
 
 export default function TabLayout() {
   return (
@@ -44,6 +44,13 @@ export default function TabLayout() {
         options={{
           title: "Checked Out",
           tabBarIcon: ({ color, size }) => <CheckSquare size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="packages"
+        options={{
+          title: "Packages",
+          tabBarIcon: ({ color, size }) => <Package2 size={size} color={color} />,
         }}
       />
       <Tabs.Screen

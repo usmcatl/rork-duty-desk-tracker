@@ -3,13 +3,16 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput } from 
 import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
 import { useEquipmentStore } from '@/store/equipmentStore';
+import { usePackageStore } from '@/store/packageStore';
 import { useMemberStore } from '@/store/memberStore';
 import EquipmentNameplate from '@/components/EquipmentNameplate';
-import { Plus, Package, CheckSquare, Search, User, Users, ChevronRight, X } from 'lucide-react-native';
+import PackageCard from '@/components/PackageCard';
+import { Plus, Package, CheckSquare, Search, User, Users, ChevronRight, X, Package2, Clock } from 'lucide-react-native';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { equipment, checkoutRecords } = useEquipmentStore();
+  const { packages } = usePackageStore();
   const { members, getMemberById } = useMemberStore();
   
   const [showMemberSearch, setShowMemberSearch] = useState(false);
@@ -17,6 +20,8 @@ export default function DashboardScreen() {
   
   const availableEquipment = equipment.filter(item => item.status === 'available');
   const checkedOutEquipment = equipment.filter(item => item.status === 'checked-out');
+  const pendingPackages = packages.filter(pkg => pkg.status === 'pending');
+  const pickedUpPackages = packages.filter(pkg => pkg.status === 'picked-up');
   
   // Get recent checkouts (last 7 days)
   const sevenDaysAgo = new Date();
@@ -25,6 +30,11 @@ export default function DashboardScreen() {
   const recentCheckouts = checkoutRecords
     .filter(record => new Date(record.checkoutDate) > sevenDaysAgo)
     .sort((a, b) => new Date(b.checkoutDate).getTime() - new Date(a.checkoutDate).getTime());
+  
+  // Get recent packages (last 7 days)
+  const recentPackages = packages
+    .filter(pkg => new Date(pkg.arrivalDate) > sevenDaysAgo)
+    .sort((a, b) => new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime());
   
   // Filter members based on search
   const filteredMembers = members.filter(member => {
@@ -36,6 +46,10 @@ export default function DashboardScreen() {
   
   const handleAddEquipment = () => {
     router.push('/add-equipment');
+  };
+  
+  const handleAddPackage = () => {
+    router.push('/add-package');
   };
   
   const handleMemberPress = (id: string) => {
@@ -69,6 +83,12 @@ export default function DashboardScreen() {
             <Text style={styles.statLabel}>Checked Out</Text>
           </View>
           
+          <View style={[styles.statCard, styles.packagesStat]}>
+            <Package2 size={24} color={Colors.light.primary} />
+            <Text style={styles.statNumber}>{pendingPackages.length}</Text>
+            <Text style={styles.statLabel}>Packages</Text>
+          </View>
+          
           <View style={[styles.statCard, styles.membersStat]}>
             <Users size={24} color={Colors.light.primary} />
             <Text style={styles.statNumber}>{members.length}</Text>
@@ -80,37 +100,68 @@ export default function DashboardScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent Activity</Text>
           
-          {recentCheckouts.length > 0 ? (
-            recentCheckouts.slice(0, 3).map(record => {
-              const item = equipment.find(e => e.id === record.equipmentId);
-              const member = getMemberById(record.memberId);
-              if (!item) return null;
+          {(recentCheckouts.length > 0 || recentPackages.length > 0) ? (
+            <>
+              {recentCheckouts.slice(0, 2).map(record => {
+                const item = equipment.find(e => e.id === record.equipmentId);
+                const member = getMemberById(record.memberId);
+                if (!item) return null;
+                
+                return (
+                  <TouchableOpacity 
+                    key={record.id}
+                    style={styles.activityItem}
+                    onPress={() => router.push(`/equipment/${item.id}`)}
+                  >
+                    <View style={styles.activityIcon}>
+                      {record.returnDate ? (
+                        <Package size={20} color={Colors.light.success} />
+                      ) : (
+                        <CheckSquare size={20} color={Colors.light.primary} />
+                      )}
+                    </View>
+                    
+                    <View style={styles.activityContent}>
+                      <Text style={styles.activityTitle}>
+                        {record.returnDate ? 'Returned:' : 'Checked Out:'} {item.name}
+                      </Text>
+                      <Text style={styles.activityMeta}>
+                        {member ? member.name : 'Unknown Member'} • {new Date(record.checkoutDate).toLocaleDateString()}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
               
-              return (
-                <TouchableOpacity 
-                  key={record.id}
-                  style={styles.activityItem}
-                  onPress={() => router.push(`/equipment/${item.id}`)}
-                >
-                  <View style={styles.activityIcon}>
-                    {record.returnDate ? (
-                      <Package size={20} color={Colors.light.success} />
-                    ) : (
-                      <CheckSquare size={20} color={Colors.light.primary} />
-                    )}
-                  </View>
-                  
-                  <View style={styles.activityContent}>
-                    <Text style={styles.activityTitle}>
-                      {record.returnDate ? 'Returned:' : 'Checked Out:'} {item.name}
-                    </Text>
-                    <Text style={styles.activityMeta}>
-                      {member ? member.name : 'Unknown Member'} • {new Date(record.checkoutDate).toLocaleDateString()}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
+              {recentPackages.slice(0, 2).map(pkg => {
+                const member = getMemberById(pkg.memberId);
+                
+                return (
+                  <TouchableOpacity 
+                    key={pkg.id}
+                    style={styles.activityItem}
+                    onPress={() => router.push(`/package/${pkg.id}`)}
+                  >
+                    <View style={styles.activityIcon}>
+                      {pkg.status === 'picked-up' ? (
+                        <CheckSquare size={20} color={Colors.light.success} />
+                      ) : (
+                        <Clock size={20} color={Colors.light.error} />
+                      )}
+                    </View>
+                    
+                    <View style={styles.activityContent}>
+                      <Text style={styles.activityTitle}>
+                        {pkg.status === 'picked-up' ? 'Package Picked Up:' : 'Package Arrived:'} {pkg.trackingNumber}
+                      </Text>
+                      <Text style={styles.activityMeta}>
+                        {member ? member.name : pkg.recipientName} • {new Date(pkg.arrivalDate).toLocaleDateString()}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </>
           ) : (
             <Text style={styles.emptyText}>No recent activity</Text>
           )}
@@ -135,6 +186,24 @@ export default function DashboardScreen() {
             >
               <CheckSquare size={24} color={Colors.light.primary} />
               <Text style={styles.quickLinkText}>Checked Out Equipment</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.quickLinks}>
+            <TouchableOpacity 
+              style={styles.quickLink}
+              onPress={() => router.push('/packages')}
+            >
+              <Package2 size={24} color={Colors.light.primary} />
+              <Text style={styles.quickLinkText}>Packages</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickLink}
+              onPress={() => router.push('/members')}
+            >
+              <Users size={24} color={Colors.light.primary} />
+              <Text style={styles.quickLinkText}>Members</Text>
             </TouchableOpacity>
           </View>
           
@@ -238,14 +307,37 @@ export default function DashboardScreen() {
             <Text style={styles.emptyText}>No equipment added yet</Text>
           )}
         </View>
+        
+        {/* Recent Packages */}
+        {packages.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recent Packages</Text>
+            
+            {packages
+              .sort((a, b) => new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime())
+              .slice(0, 2)
+              .map(pkg => (
+                <PackageCard key={pkg.id} package={pkg} />
+              ))}
+          </View>
+        )}
       </ScrollView>
       
-      <TouchableOpacity 
-        style={styles.fab}
-        onPress={handleAddEquipment}
-      >
-        <Plus size={24} color="#fff" />
-      </TouchableOpacity>
+      <View style={styles.fabContainer}>
+        <TouchableOpacity 
+          style={[styles.fab, styles.secondaryFab]}
+          onPress={handleAddPackage}
+        >
+          <Package2 size={20} color="#fff" />
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.fab}
+          onPress={handleAddEquipment}
+        >
+          <Plus size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -273,7 +365,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 16,
     borderRadius: 12,
-    marginHorizontal: 4,
+    marginHorizontal: 2,
     shadowColor: Colors.light.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
@@ -285,6 +377,9 @@ const styles = StyleSheet.create({
   },
   checkedOutStat: {
     backgroundColor: 'rgba(255, 107, 107, 0.1)',
+  },
+  packagesStat: {
+    backgroundColor: 'rgba(0, 119, 204, 0.1)',
   },
   membersStat: {
     backgroundColor: 'rgba(0, 119, 204, 0.1)',
@@ -494,10 +589,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     padding: 16,
   },
-  fab: {
+  fabContainer: {
     position: 'absolute',
     bottom: 24,
     right: 24,
+    alignItems: 'flex-end',
+  },
+  fab: {
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -509,5 +607,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+    marginBottom: 12,
+  },
+  secondaryFab: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.light.secondary,
+    shadowColor: Colors.light.shadow,
   },
 });

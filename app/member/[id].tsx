@@ -12,9 +12,11 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import Colors from '@/constants/colors';
 import { useMemberStore } from '@/store/memberStore';
 import { useEquipmentStore } from '@/store/equipmentStore';
+import { usePackageStore } from '@/store/packageStore';
 import Button from '@/components/Button';
 import EmptyState from '@/components/EmptyState';
 import CheckoutHistoryItem from '@/components/CheckoutHistoryItem';
+import PackageCard from '@/components/PackageCard';
 import { 
   User, 
   Phone, 
@@ -25,7 +27,8 @@ import {
   Edit, 
   Trash2,
   CheckSquare,
-  ChevronRight
+  ChevronRight,
+  Package2
 } from 'lucide-react-native';
 
 export default function MemberDetailScreen() {
@@ -33,6 +36,7 @@ export default function MemberDetailScreen() {
   const router = useRouter();
   const { members, removeMember } = useMemberStore();
   const { checkoutRecords, equipment } = useEquipmentStore();
+  const { getPackagesByMember } = usePackageStore();
   
   const member = members.find(m => m.id === id);
   
@@ -55,16 +59,22 @@ export default function MemberDetailScreen() {
   // Get currently checked out equipment
   const activeCheckouts = memberCheckoutRecords.filter(record => !record.returnDate);
   
+  // Get packages for this member
+  const memberPackages = getPackagesByMember(id)
+    .sort((a, b) => new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime());
+  
+  const pendingPackages = memberPackages.filter(pkg => pkg.status === 'pending');
+  
   const handleEditMember = () => {
     router.push(`/edit-member/${id}`);
   };
   
   const handleDeleteMember = () => {
-    // Check if member has active checkouts
-    if (activeCheckouts.length > 0) {
+    // Check if member has active checkouts or pending packages
+    if (activeCheckouts.length > 0 || pendingPackages.length > 0) {
       Alert.alert(
         "Cannot Delete Member",
-        "This member has equipment currently checked out. All equipment must be returned before the member can be deleted.",
+        "This member has equipment currently checked out or packages awaiting pickup. All equipment must be returned and packages picked up before the member can be deleted.",
         [{ text: "OK" }]
       );
       return;
@@ -211,6 +221,32 @@ export default function MemberDetailScreen() {
             <Text style={styles.notesText}>{member.notes}</Text>
           </View>
         )}
+        
+        {/* Packages Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Packages</Text>
+          
+          {memberPackages.length > 0 ? (
+            memberPackages.slice(0, 3).map(pkg => (
+              <PackageCard key={pkg.id} package={pkg} />
+            ))
+          ) : (
+            <Text style={styles.emptyText}>
+              No packages for this member.
+            </Text>
+          )}
+          
+          {memberPackages.length > 3 && (
+            <TouchableOpacity
+              style={styles.viewAllButton}
+              onPress={() => router.push('/packages')}
+            >
+              <Text style={styles.viewAllText}>
+                View all {memberPackages.length} packages
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
         
         {/* Currently Checked Out Equipment */}
         <View style={styles.sectionContainer}>
@@ -446,6 +482,18 @@ const styles = StyleSheet.create({
   checkoutItemDate: {
     fontSize: 14,
     color: Colors.light.subtext,
+  },
+  viewAllButton: {
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: Colors.light.secondary,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  viewAllText: {
+    fontSize: 14,
+    color: Colors.light.primary,
+    fontWeight: '500',
   },
   emptyText: {
     fontSize: 14,
