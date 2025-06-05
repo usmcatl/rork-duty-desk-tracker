@@ -84,12 +84,15 @@ export default function AddPackageScreen() {
     }
     
     try {
-      const memberId = addMember({
+      const memberData = {
         name: newMemberName.trim(),
         memberId: `PKG${Date.now()}`,
-        phone: newMemberPhone.trim() || undefined,
-        email: newMemberEmail.trim() || undefined,
-      });
+        joinDate: new Date().toISOString(),
+        ...(newMemberPhone.trim() && { phone: newMemberPhone.trim() }),
+        ...(newMemberEmail.trim() && { email: newMemberEmail.trim() }),
+      };
+      
+      const memberId = addMember(memberData);
       
       if (memberId) {
         setSelectedMemberId(memberId);
