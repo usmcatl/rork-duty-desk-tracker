@@ -11,7 +11,6 @@ import {
   Platform
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import Colors from '@/constants/colors';
 import { usePackageStore } from '@/store/packageStore';
 import { useMemberStore } from '@/store/memberStore';
@@ -24,7 +23,6 @@ export default function AddPackageScreen() {
   const router = useRouter();
   const { addPackage } = usePackageStore();
   const { members, addMember } = useMemberStore();
-  const [permission, requestPermission] = useCameraPermissions();
   
   const [trackingNumber, setTrackingNumber] = useState('');
   const [recipientName, setRecipientName] = useState('');
@@ -49,10 +47,6 @@ export default function AddPackageScreen() {
   const [newMemberEmail, setNewMemberEmail] = useState('');
   
   const handleTakePhoto = (photoType: PhotoType) => {
-    if (!permission?.granted) {
-      requestPermission();
-      return;
-    }
     setCurrentPhotoType(photoType);
     setShowCamera(true);
   };
@@ -174,45 +168,23 @@ export default function AddPackageScreen() {
       <View style={styles.cameraContainer}>
         <Stack.Screen options={{ headerShown: false }} />
         
-        {Platform.OS !== 'web' ? (
-          <CameraView style={styles.camera} facing="back">
-            <View style={styles.cameraOverlay}>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowCamera(false)}
-              >
-                <X size={24} color="#fff" />
-              </TouchableOpacity>
-              
-              <Text style={styles.cameraInstructions}>
-                Take a photo of the {currentPhotoType === 'package' ? 'package' : 
-                currentPhotoType === 'label' ? 'shipping label' : 'storage location'}
-              </Text>
-              
-              <TouchableOpacity
-                style={styles.captureButton}
-                onPress={handlePhotoTaken}
-              >
-                <View style={styles.captureButtonInner} />
-              </TouchableOpacity>
-            </View>
-          </CameraView>
-        ) : (
-          <View style={styles.webCameraFallback}>
-            <Text style={styles.webCameraText}>Camera not available on web</Text>
-            <Button
-              title="Use Demo Photo"
-              onPress={handlePhotoTaken}
-              style={styles.webCameraButton}
-            />
-            <Button
-              title="Cancel"
-              onPress={() => setShowCamera(false)}
-              variant="outline"
-              style={styles.webCameraButton}
-            />
-          </View>
-        )}
+        <View style={styles.webCameraFallback}>
+          <Text style={styles.webCameraText}>
+            Take a photo of the {currentPhotoType === 'package' ? 'package' : 
+            currentPhotoType === 'label' ? 'shipping label' : 'storage location'}
+          </Text>
+          <Button
+            title="Use Demo Photo"
+            onPress={handlePhotoTaken}
+            style={styles.webCameraButton}
+          />
+          <Button
+            title="Cancel"
+            onPress={() => setShowCamera(false)}
+            variant="outline"
+            style={styles.webCameraButton}
+          />
+        </View>
       </View>
     );
   }
@@ -626,47 +598,6 @@ const styles = StyleSheet.create({
   },
   cameraContainer: {
     flex: 1,
-  },
-  camera: {
-    flex: 1,
-  },
-  cameraOverlay: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-  },
-  closeButton: {
-    alignSelf: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
-    padding: 10,
-  },
-  cameraInstructions: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 16,
-    borderRadius: 12,
-  },
-  captureButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#fff',
-  },
-  captureButtonInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#fff',
   },
   webCameraFallback: {
     flex: 1,
