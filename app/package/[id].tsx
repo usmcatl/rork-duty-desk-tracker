@@ -52,18 +52,42 @@ export default function PackageDetailScreen() {
   
   const handleMarkAsPickedUp = () => {
     Alert.alert(
-      "Mark as Picked Up",
-      "Confirm that this package has been picked up by the recipient?",
+      "Confirm Package Pickup",
+      `Are you absolutely sure that ${pkg.recipientName} has picked up this package?\n\nTracking: ${pkg.trackingNumber}\nDescription: ${pkg.description}`,
       [
         {
           text: "Cancel",
           style: "cancel"
         },
         { 
-          text: "Confirm", 
+          text: "Yes, Confirm Pickup", 
+          style: "default",
           onPress: () => {
-            markAsPickedUp(id);
-            Alert.alert("Success", "Package marked as picked up!");
+            // Secondary confirmation
+            Alert.alert(
+              "Final Confirmation",
+              "This action cannot be undone. The package will be marked as picked up and moved to the completed section.",
+              [
+                {
+                  text: "Cancel",
+                  style: "cancel"
+                },
+                {
+                  text: "Confirm Pickup",
+                  style: "destructive",
+                  onPress: () => {
+                    markAsPickedUp(id);
+                    Alert.alert(
+                      "Package Picked Up", 
+                      "The package has been successfully marked as picked up.",
+                      [
+                        { text: "OK", onPress: () => router.back() }
+                      ]
+                    );
+                  }
+                }
+              ]
+            );
           }
         }
       ]
