@@ -174,22 +174,12 @@ export default function DashboardScreen() {
           <View style={styles.quickLinks}>
             <TouchableOpacity 
               style={styles.quickLink}
-              onPress={() => router.push('/available')}
+              onPress={() => router.push('/equipment')}
             >
               <Package size={24} color={Colors.light.primary} />
-              <Text style={styles.quickLinkText}>Available Equipment</Text>
+              <Text style={styles.quickLinkText}>Equipment</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity 
-              style={styles.quickLink}
-              onPress={() => router.push('/checked-out')}
-            >
-              <CheckSquare size={24} color={Colors.light.primary} />
-              <Text style={styles.quickLinkText}>Checked Out Equipment</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.quickLinks}>
             <TouchableOpacity 
               style={styles.quickLink}
               onPress={() => router.push('/packages')}
@@ -197,13 +187,23 @@ export default function DashboardScreen() {
               <Package2 size={24} color={Colors.light.primary} />
               <Text style={styles.quickLinkText}>Packages</Text>
             </TouchableOpacity>
-            
+          </View>
+          
+          <View style={styles.quickLinks}>
             <TouchableOpacity 
               style={styles.quickLink}
               onPress={() => router.push('/members')}
             >
               <Users size={24} color={Colors.light.primary} />
               <Text style={styles.quickLinkText}>Members</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickLink}
+              onPress={() => router.push('/settings')}
+            >
+              <Package size={24} color={Colors.light.primary} />
+              <Text style={styles.quickLinkText}>Settings</Text>
             </TouchableOpacity>
           </View>
           
