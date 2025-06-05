@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
 import { useEquipmentStore } from '@/store/equipmentStore';
 import { useMemberStore } from '@/store/memberStore';
-import EquipmentCard from '@/components/EquipmentCard';
+import EquipmentNameplate from '@/components/EquipmentNameplate';
 import { Plus, Package, CheckSquare, Search, User, Users, ChevronRight, X } from 'lucide-react-native';
 
 export default function DashboardScreen() {
@@ -230,9 +230,9 @@ export default function DashboardScreen() {
           {equipment.length > 0 ? (
             equipment
               .sort((a, b) => new Date(b.addedDate).getTime() - new Date(a.addedDate).getTime())
-              .slice(0, 2)
+              .slice(0, 3)
               .map(item => (
-                <EquipmentCard key={item.id} equipment={item} />
+                <EquipmentNameplate key={item.id} equipment={item} />
               ))
           ) : (
             <Text style={styles.emptyText}>No equipment added yet</Text>
