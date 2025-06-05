@@ -21,7 +21,7 @@ const sampleMembers: Member[] = [
     memberId: 'MED001',
     phone: '+1 (555) 123-4567',
     email: 'john.smith@example.com',
-    joinDate: '2024-01-15T10:30:00.000Z',
+    joinDate: new Date('2024-01-15T10:30:00.000Z'),
   },
   {
     id: '2',
@@ -29,7 +29,7 @@ const sampleMembers: Member[] = [
     memberId: 'MED002',
     phone: '+1 (555) 987-6543',
     email: 'maria.garcia@example.com',
-    joinDate: '2024-02-20T14:15:00.000Z',
+    joinDate: new Date('2024-02-20T14:15:00.000Z'),
   },
   {
     id: '3',
@@ -37,15 +37,14 @@ const sampleMembers: Member[] = [
     memberId: 'MED003',
     phone: '+1 (555) 456-7890',
     email: 'david.johnson@example.com',
-    joinDate: '2024-03-10T09:45:00.000Z',
+    joinDate: new Date('2024-03-10T09:45:00.000Z'),
   },
   {
     id: '4',
     name: 'Sarah Wilson',
     memberId: 'MED004',
-    phone: '+1 (555) 321-9876',
     email: 'sarah.wilson@example.com',
-    joinDate: '2024-04-05T16:20:00.000Z',
+    joinDate: new Date('2024-04-05T16:20:00.000Z'),
   },
 ];
 

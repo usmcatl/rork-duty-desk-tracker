@@ -87,7 +87,7 @@ export default function AddPackageScreen() {
       const memberData = {
         name: newMemberName.trim(),
         memberId: `PKG${Date.now()}`,
-        joinDate: new Date().toISOString(),
+        joinDate: new Date(),
         ...(newMemberPhone.trim() && { phone: newMemberPhone.trim() }),
         ...(newMemberEmail.trim() && { email: newMemberEmail.trim() }),
       };
