@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
 import { Package } from '@/types/package';
 import { useMemberStore } from '@/store/memberStore';
-import { Package2, User, Calendar, MapPin, CheckCircle, Clock } from 'lucide-react-native';
+import { Package2, Clock, CheckCircle, User, Calendar } from 'lucide-react-native';
 
 interface PackageCardProps {
   package: Package;
@@ -32,6 +32,13 @@ export default function PackageCard({ package: pkg }: PackageCardProps) {
     router.push(`/package/${pkg.id}`);
   };
   
+  const handleMemberPress = (e: any) => {
+    e.stopPropagation();
+    if (member) {
+      router.push(`/member/${member.id}`);
+    }
+  };
+  
   return (
     <TouchableOpacity style={styles.container} onPress={handlePress}>
       <View style={styles.header}>
@@ -41,9 +48,11 @@ export default function PackageCard({ package: pkg }: PackageCardProps) {
         
         <View style={styles.headerContent}>
           <Text style={styles.recipientName}>{pkg.recipientName}</Text>
-          <Text style={styles.description} numberOfLines={1}>
-            {pkg.description}
-          </Text>
+          <TouchableOpacity onPress={handleMemberPress}>
+            <Text style={[styles.memberInfo, styles.linkText]}>
+              {member ? formatMemberDisplay(member) : 'Unknown Member'}
+            </Text>
+          </TouchableOpacity>
         </View>
         
         <View style={[
@@ -51,46 +60,34 @@ export default function PackageCard({ package: pkg }: PackageCardProps) {
           pkg.status === 'pending' ? styles.pendingBadge : styles.pickedUpBadge
         ]}>
           {pkg.status === 'pending' ? (
-            <Clock size={14} color={Colors.light.flagRed} />
+            <Clock size={16} color={Colors.light.flagRed} />
           ) : (
-            <CheckCircle size={14} color={Colors.light.success} />
+            <CheckCircle size={16} color={Colors.light.success} />
           )}
-          <Text style={[
-            styles.statusText,
-            pkg.status === 'pending' ? styles.pendingText : styles.pickedUpText
-          ]}>
-            {pkg.status === 'pending' ? 'Pending' : 'Picked Up'}
-          </Text>
         </View>
       </View>
       
-      <View style={styles.details}>
-        <View style={styles.detailItem}>
-          <User size={16} color={Colors.light.primary} />
-          <Text style={styles.detailText}>
-            {member ? formatMemberDisplay(member) : pkg.recipientName} {member ? `(${member.memberId})` : ''}
-          </Text>
-        </View>
+      <View style={styles.content}>
+        <Text style={styles.description} numberOfLines={2}>
+          {pkg.description}
+        </Text>
         
-        <View style={styles.detailItem}>
-          <Calendar size={16} color={Colors.light.primary} />
-          <Text style={styles.detailText}>
-            Arrived: {formatDate(pkg.arrivalDate)}
-            {pkg.pickupDate && ` • Picked up: ${formatDate(pkg.pickupDate)}`}
-          </Text>
+        <View style={styles.details}>
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>From:</Text>
+            <Text style={styles.detailValue}>{pkg.sender}</Text>
+          </View>
+          
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>Location:</Text>
+            <Text style={styles.detailValue}>{pkg.storageLocation}</Text>
+          </View>
+          
+          <View style={styles.detailItem}>
+            <Calendar size={14} color={Colors.light.subtext} />
+            <Text style={styles.dateText}>{formatDate(pkg.arrivalDate)}</Text>
+          </View>
         </View>
-        
-        <View style={styles.detailItem}>
-          <MapPin size={16} color={Colors.light.primary} />
-          <Text style={styles.detailText}>
-            {pkg.storageLocation}
-          </Text>
-        </View>
-      </View>
-      
-      <View style={styles.footer}>
-        <Text style={styles.senderText}>From: {pkg.sender}</Text>
-        <Text style={styles.addedByText}>Added by: {pkg.addedBy}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -118,29 +115,33 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     backgroundColor: Colors.light.secondary,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
   headerContent: {
     flex: 1,
   },
   recipientName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: Colors.light.text,
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  description: {
+  memberInfo: {
     fontSize: 14,
     color: Colors.light.subtext,
   },
+  linkText: {
+    color: Colors.light.primary,
+    textDecorationLine: 'underline',
+  },
   statusBadge: {
-    flexDirection: 'row',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 12,
+    justifyContent: 'center',
   },
   pendingBadge: {
     backgroundColor: 'rgba(220, 20, 60, 0.1)',
@@ -148,46 +149,35 @@ const styles = StyleSheet.create({
   pickedUpBadge: {
     backgroundColor: 'rgba(40, 167, 69, 0.1)',
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
+  content: {
+    gap: 8,
   },
-  pendingText: {
-    color: Colors.light.flagRed,
-  },
-  pickedUpText: {
-    color: Colors.light.success,
+  description: {
+    fontSize: 16,
+    color: Colors.light.text,
+    lineHeight: 22,
   },
   details: {
-    marginBottom: 12,
+    gap: 4,
   },
   detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
   },
-  detailText: {
+  detailLabel: {
+    fontSize: 14,
+    color: Colors.light.subtext,
+    marginRight: 4,
+    fontWeight: '500',
+  },
+  detailValue: {
     fontSize: 14,
     color: Colors.light.text,
-    marginLeft: 8,
     flex: 1,
   },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: Colors.light.border,
-  },
-  senderText: {
-    fontSize: 12,
+  dateText: {
+    fontSize: 14,
     color: Colors.light.subtext,
-  },
-  addedByText: {
-    fontSize: 12,
-    color: Colors.light.subtext,
-    fontStyle: 'italic',
+    marginLeft: 4,
   },
 });

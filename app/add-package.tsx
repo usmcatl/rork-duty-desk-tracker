@@ -21,6 +21,18 @@ import { Camera, X, User, Plus, ChevronDown, Check } from 'lucide-react-native';
 
 type PhotoType = 'package' | 'label' | 'storage';
 
+const SENDER_OPTIONS = [
+  'Amazon',
+  'FedEx', 
+  'UPS',
+  'DHL',
+  'USPS',
+  'Walmart',
+  'Mercado Libre',
+  'Temu',
+  'Other'
+];
+
 export default function AddPackageScreen() {
   const router = useRouter();
   const { addPackage } = usePackageStore();
@@ -48,6 +60,9 @@ export default function AddPackageScreen() {
   
   // Duty officer dropdown
   const [showDutyOfficerDropdown, setShowDutyOfficerDropdown] = useState(false);
+  
+  // Sender dropdown
+  const [showSenderDropdown, setShowSenderDropdown] = useState(false);
   
   // New member creation
   const [showNewMemberForm, setShowNewMemberForm] = useState(false);
@@ -186,8 +201,8 @@ export default function AddPackageScreen() {
     });
     
     Alert.alert(
-      'Success', 
-      'Package added successfully!',
+      'Package Added Successfully!', 
+      'The package has been added to the system.',
       [
         { 
           text: 'Add Another Package', 
@@ -207,7 +222,7 @@ export default function AddPackageScreen() {
           }
         },
         { 
-          text: 'Done', 
+          text: 'Return to Packages', 
           onPress: () => router.back() 
         }
       ]
@@ -382,13 +397,38 @@ export default function AddPackageScreen() {
           
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Sender *</Text>
-            <TextInput
-              style={styles.input}
-              value={sender}
-              onChangeText={setSender}
-              placeholder="Sender name or company"
-              placeholderTextColor={Colors.light.subtext}
-            />
+            <TouchableOpacity
+              style={[styles.input, styles.dropdownButton]}
+              onPress={() => setShowSenderDropdown(!showSenderDropdown)}
+            >
+              <Text style={[styles.dropdownText, !sender && styles.placeholderText]}>
+                {sender || 'Select sender'}
+              </Text>
+              <ChevronDown size={20} color={Colors.light.subtext} />
+            </TouchableOpacity>
+            
+            {showSenderDropdown && (
+              <View style={styles.dropdown}>
+                <FlatList
+                  data={SENDER_OPTIONS}
+                  keyExtractor={(item) => item}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.dropdownItem}
+                      onPress={() => {
+                        setSender(item);
+                        setShowSenderDropdown(false);
+                      }}
+                    >
+                      <Text style={styles.dropdownItemText}>{item}</Text>
+                      {sender === item && (
+                        <Check size={16} color={Colors.light.primary} />
+                      )}
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            )}
           </View>
           
           <View style={styles.inputGroup}>

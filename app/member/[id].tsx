@@ -6,7 +6,8 @@ import {
   ScrollView, 
   TouchableOpacity, 
   Alert,
-  Linking
+  Linking,
+  TextInput
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import Colors from '@/constants/colors';
@@ -32,6 +33,8 @@ import {
   Users,
   Tag
 } from 'lucide-react-native';
+
+const ADMIN_CODE = '1234'; // In production, this should be more secure
 
 export default function MemberDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -85,23 +88,45 @@ export default function MemberDetailScreen() {
       return;
     }
     
-    Alert.alert(
-      "Delete Member",
-      "Are you sure you want to delete this member? This action cannot be undone.",
+    // Require administrator code
+    Alert.prompt(
+      "Administrator Verification Required",
+      "Enter the administrator code to delete this member:",
       [
         {
           text: "Cancel",
           style: "cancel"
         },
-        { 
-          text: "Delete", 
+        {
+          text: "Delete",
           style: "destructive",
-          onPress: () => {
-            removeMember(id);
-            router.back();
+          onPress: (code) => {
+            if (code === ADMIN_CODE) {
+              Alert.alert(
+                "Delete Member",
+                "Are you sure you want to delete this member? This action cannot be undone.",
+                [
+                  {
+                    text: "Cancel",
+                    style: "cancel"
+                  },
+                  { 
+                    text: "Delete", 
+                    style: "destructive",
+                    onPress: () => {
+                      removeMember(id);
+                      router.back();
+                    }
+                  }
+                ]
+              );
+            } else {
+              Alert.alert("Error", "Invalid administrator code.");
+            }
           }
         }
-      ]
+      ],
+      "secure-text"
     );
   };
   
@@ -115,6 +140,10 @@ export default function MemberDetailScreen() {
     if (member.email) {
       Linking.openURL(`mailto:${member.email}`);
     }
+  };
+  
+  const handleEquipmentPress = (equipmentId: string) => {
+    router.push(`/equipment/${equipmentId}`);
   };
   
   const formatDate = (date: Date) => {
@@ -312,12 +341,12 @@ export default function MemberDetailScreen() {
                 <TouchableOpacity 
                   key={record.id}
                   style={styles.checkoutItem}
-                  onPress={() => router.push(`/equipment/${item.id}`)}
+                  onPress={() => handleEquipmentPress(item.id)}
                 >
                   <View style={styles.checkoutItemLeft}>
                     <CheckSquare size={20} color={Colors.light.primary} />
                     <View style={styles.checkoutItemContent}>
-                      <Text style={styles.checkoutItemTitle}>{item.name}</Text>
+                      <Text style={[styles.checkoutItemTitle, styles.linkText]}>{item.name}</Text>
                       <Text style={styles.checkoutItemDate}>
                         Checked out: {formatDate(record.checkoutDate)}
                       </Text>
@@ -467,6 +496,10 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: 16,
     color: Colors.light.text,
+  },
+  linkText: {
+    color: Colors.light.primary,
+    textDecorationLine: 'underline',
   },
   notesContainer: {
     backgroundColor: Colors.light.secondary,

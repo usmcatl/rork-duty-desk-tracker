@@ -13,7 +13,7 @@ import { Stack, useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
 import { useMemberStore } from '@/store/memberStore';
 import Button from '@/components/Button';
-import { User, Phone, Mail, MapPin, FileText, Calendar } from 'lucide-react-native';
+import { User, Phone, Mail, MapPin, FileText, Calendar, Tag } from 'lucide-react-native';
 
 export default function AddMemberScreen() {
   const router = useRouter();
@@ -21,6 +21,7 @@ export default function AddMemberScreen() {
   
   const [memberId, setMemberId] = useState('');
   const [name, setName] = useState('');
+  const [aliases, setAliases] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
@@ -66,10 +67,16 @@ export default function AddMemberScreen() {
       return;
     }
     
+    // Process aliases
+    const aliasArray = aliases.trim() 
+      ? aliases.split(',').map(alias => alias.trim()).filter(Boolean)
+      : undefined;
+    
     // Add member
     addMember({
       memberId: memberId.trim(),
       name: name.trim(),
+      ...(aliasArray && aliasArray.length > 0 && { aliases: aliasArray }),
       phone: phone.trim(),
       email: email.trim() || undefined,
       address: address.trim() || undefined,
@@ -135,6 +142,23 @@ export default function AddMemberScreen() {
             placeholder="Enter member's full name"
             placeholderTextColor={Colors.light.subtext}
           />
+        </View>
+        
+        <View style={styles.inputContainer}>
+          <View style={styles.inputHeader}>
+            <Tag size={20} color={Colors.light.primary} />
+            <Text style={styles.inputHeaderLabel}>Aliases (Optional)</Text>
+          </View>
+          <TextInput
+            style={styles.input}
+            value={aliases}
+            onChangeText={setAliases}
+            placeholder="Enter aliases separated by commas"
+            placeholderTextColor={Colors.light.subtext}
+          />
+          <Text style={styles.inputHelp}>
+            Alternative names or nicknames (e.g., Johnny, J. Smith)
+          </Text>
         </View>
         
         <View style={styles.inputContainer}>

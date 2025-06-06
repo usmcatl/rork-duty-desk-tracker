@@ -7,26 +7,33 @@ import {
   TextInput, 
   TouchableOpacity, 
   Alert,
-  Platform
+  Platform,
+  FlatList
 } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import Colors from '@/constants/colors';
 import { useMemberStore } from '@/store/memberStore';
 import Button from '@/components/Button';
-import { User, Phone, Mail, MapPin, FileText, Calendar } from 'lucide-react-native';
+import { User, Phone, Mail, MapPin, FileText, Calendar, Tag, Users, Plus, X } from 'lucide-react-native';
 
 export default function EditMemberScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { members, updateMember, getMemberById } = useMemberStore();
+  const { members, updateMember, getMemberById, addAssociation, removeAssociation, getAssociatedMembers } = useMemberStore();
   
   const [memberId, setMemberId] = useState('');
   const [name, setName] = useState('');
+  const [aliases, setAliases] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
   const [joinDate, setJoinDate] = useState(new Date());
+  
+  // Associated members
+  const [showAssociatedMemberForm, setShowAssociatedMemberForm] = useState(false);
+  const [associatedMemberSearch, setAssociatedMemberSearch] = useState('');
+  const [filteredMembers, setFilteredMembers] = useState<any[]>([]);
   
   // Load member data when component mounts
   useEffect(() => {
@@ -34,6 +41,7 @@ export default function EditMemberScreen() {
     if (member) {
       setMemberId(member.memberId);
       setName(member.name);
+      setAliases(member.aliases ? member.aliases.join(', ') : '');
       setPhone(member.phone || '');
       setEmail(member.email || '');
       setAddress(member.address || '');
@@ -45,6 +53,8 @@ export default function EditMemberScreen() {
       router.back();
     }
   }, [id]);
+  
+  const associatedMembers = getAssociatedMembers(id);
   
   const handleUpdateMember = () => {
     // Validate inputs
@@ -65,11 +75,17 @@ export default function EditMemberScreen() {
       return;
     }
     
+    // Process aliases
+    const aliasArray = aliases.trim() 
+      ? aliases.split(',').map(alias => alias.trim()).filter(Boolean)
+      : undefined;
+    
     // Update member
     updateMember({
       id,
       memberId: memberId.trim(),
       name: name.trim(),
+      ...(aliasArray && aliasArray.length > 0 && { aliases: aliasArray }),
       phone: phone.trim(),
       email: email.trim() || undefined,
       address: address.trim() || undefined,
@@ -81,12 +97,66 @@ export default function EditMemberScreen() {
     router.back();
   };
   
+  const handleAssociatedMemberSearch = (query: string) => {
+    setAssociatedMemberSearch(query);
+    
+    if (query.trim()) {
+      // Filter out current member and already associated members
+      const currentAssociatedIds = associatedMembers.map(m => m.id);
+      const filtered = members.filter(member => 
+        member.id !== id && 
+        !currentAssociatedIds.includes(member.id) &&
+        (member.name.toLowerCase().includes(query.toLowerCase()) ||
+         member.memberId.toLowerCase().includes(query.toLowerCase()))
+      );
+      setFilteredMembers(filtered);
+    } else {
+      setFilteredMembers([]);
+    }
+  };
+  
+  const handleAddAssociation = (associatedMemberId: string) => {
+    addAssociation(id, associatedMemberId);
+    // Also add the reverse association
+    addAssociation(associatedMemberId, id);
+    setShowAssociatedMemberForm(false);
+    setAssociatedMemberSearch('');
+    setFilteredMembers([]);
+  };
+  
+  const handleRemoveAssociation = (associatedMemberId: string) => {
+    Alert.alert(
+      "Remove Association",
+      "Are you sure you want to remove this member association?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: () => {
+            removeAssociation(id, associatedMemberId);
+            // Also remove the reverse association
+            removeAssociation(associatedMemberId, id);
+          }
+        }
+      ]
+    );
+  };
+  
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
+  };
+  
+  const formatMemberDisplay = (member: any) => {
+    let display = member.name;
+    if (member.aliases && member.aliases.length > 0) {
+      display += ` "${member.aliases.join('", "')}"`;
+    }
+    return display;
   };
   
   return (
@@ -135,6 +205,23 @@ export default function EditMemberScreen() {
             placeholder="Enter member's full name"
             placeholderTextColor={Colors.light.subtext}
           />
+        </View>
+        
+        <View style={styles.inputContainer}>
+          <View style={styles.inputHeader}>
+            <Tag size={20} color={Colors.light.primary} />
+            <Text style={styles.inputHeaderLabel}>Aliases (Optional)</Text>
+          </View>
+          <TextInput
+            style={styles.input}
+            value={aliases}
+            onChangeText={setAliases}
+            placeholder="Enter aliases separated by commas"
+            placeholderTextColor={Colors.light.subtext}
+          />
+          <Text style={styles.inputHelp}>
+            Alternative names or nicknames (e.g., Johnny, J. Smith)
+          </Text>
         </View>
         
         <View style={styles.inputContainer}>
@@ -201,6 +288,90 @@ export default function EditMemberScreen() {
           >
             <Text style={styles.dateText}>{formatDate(joinDate)}</Text>
           </TouchableOpacity>
+        </View>
+        
+        {/* Associated Members Section */}
+        <View style={styles.inputContainer}>
+          <View style={styles.inputHeader}>
+            <Users size={20} color={Colors.light.primary} />
+            <Text style={styles.inputHeaderLabel}>Associated Members (Optional)</Text>
+          </View>
+          
+          {associatedMembers.length > 0 && (
+            <View style={styles.associatedMembersList}>
+              {associatedMembers.map(member => (
+                <View key={member.id} style={styles.associatedMemberItem}>
+                  <Text style={styles.associatedMemberName}>
+                    {formatMemberDisplay(member)}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => handleRemoveAssociation(member.id)}
+                    style={styles.removeAssociationButton}
+                  >
+                    <X size={16} color={Colors.light.flagRed} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+          
+          {!showAssociatedMemberForm ? (
+            <TouchableOpacity
+              style={styles.addAssociationButton}
+              onPress={() => setShowAssociatedMemberForm(true)}
+            >
+              <Plus size={16} color={Colors.light.primary} />
+              <Text style={styles.addAssociationText}>Add Associated Member</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.associatedMemberForm}>
+              <TextInput
+                style={styles.input}
+                value={associatedMemberSearch}
+                onChangeText={handleAssociatedMemberSearch}
+                placeholder="Search for member to associate..."
+                placeholderTextColor={Colors.light.subtext}
+              />
+              
+              {filteredMembers.length > 0 && (
+                <View style={styles.memberDropdown}>
+                  <FlatList
+                    data={filteredMembers.slice(0, 5)}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={styles.memberDropdownItem}
+                        onPress={() => handleAddAssociation(item.id)}
+                      >
+                        <User size={16} color={Colors.light.primary} />
+                        <View style={styles.memberDropdownContent}>
+                          <Text style={styles.memberDropdownName}>
+                            {formatMemberDisplay(item)}
+                          </Text>
+                          <Text style={styles.memberDropdownId}>ID: {item.memberId}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                  />
+                </View>
+              )}
+              
+              <TouchableOpacity
+                style={styles.cancelAssociationButton}
+                onPress={() => {
+                  setShowAssociatedMemberForm(false);
+                  setAssociatedMemberSearch('');
+                  setFilteredMembers([]);
+                }}
+              >
+                <Text style={styles.cancelAssociationText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          
+          <Text style={styles.inputHelp}>
+            Associate family members or related individuals
+          </Text>
         </View>
         
         <View style={styles.inputContainer}>
@@ -300,6 +471,81 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 16,
     color: Colors.light.text,
+  },
+  associatedMembersList: {
+    marginBottom: 12,
+  },
+  associatedMemberItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: Colors.light.secondary,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  associatedMemberName: {
+    fontSize: 14,
+    color: Colors.light.text,
+    flex: 1,
+  },
+  removeAssociationButton: {
+    padding: 4,
+  },
+  addAssociationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.light.secondary,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  addAssociationText: {
+    fontSize: 14,
+    color: Colors.light.primary,
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+  associatedMemberForm: {
+    marginBottom: 12,
+  },
+  memberDropdown: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    maxHeight: 200,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  memberDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  memberDropdownContent: {
+    marginLeft: 8,
+    flex: 1,
+  },
+  memberDropdownName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.light.text,
+  },
+  memberDropdownId: {
+    fontSize: 12,
+    color: Colors.light.subtext,
+  },
+  cancelAssociationButton: {
+    alignItems: 'center',
+    padding: 8,
+  },
+  cancelAssociationText: {
+    fontSize: 14,
+    color: Colors.light.subtext,
   },
   updateButton: {
     marginTop: 12,

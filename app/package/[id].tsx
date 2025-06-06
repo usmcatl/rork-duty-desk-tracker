@@ -25,14 +25,15 @@ import {
   CheckCircle,
   Clock,
   Camera,
-  Truck
+  Truck,
+  Users
 } from 'lucide-react-native';
 
 export default function PackageDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { packages, removePackage, markAsPickedUp } = usePackageStore();
-  const { getMemberById } = useMemberStore();
+  const { getMemberById, getAssociatedMembers } = useMemberStore();
   
   const packageItem = packages.find(p => p.id === id);
   
@@ -48,6 +49,7 @@ export default function PackageDetailScreen() {
   }
   
   const member = getMemberById(packageItem.memberId);
+  const associatedMembers = member ? getAssociatedMembers(member.id) : [];
   
   const handleMarkAsPickedUp = () => {
     Alert.alert(
@@ -61,8 +63,23 @@ export default function PackageDetailScreen() {
         { 
           text: "Confirm Pickup", 
           onPress: () => {
-            markAsPickedUp(packageItem.id);
-            Alert.alert('Success', 'Package marked as picked up!');
+            Alert.alert(
+              "Final Confirmation",
+              "Please confirm that this package has actually been picked up by the recipient. This cannot be undone.",
+              [
+                {
+                  text: "Cancel",
+                  style: "cancel"
+                },
+                {
+                  text: "Yes, Package Picked Up",
+                  onPress: () => {
+                    markAsPickedUp(packageItem.id);
+                    Alert.alert('Success', 'Package marked as picked up!');
+                  }
+                }
+              ]
+            );
           }
         }
       ]
@@ -88,6 +105,10 @@ export default function PackageDetailScreen() {
         }
       ]
     );
+  };
+  
+  const handleMemberPress = (memberId: string) => {
+    router.push(`/member/${memberId}`);
   };
   
   const formatDate = (date: Date) => {
@@ -152,18 +173,42 @@ export default function PackageDetailScreen() {
         </View>
         
         <View style={styles.detailsContainer}>
-          <View style={styles.detailItem}>
+          <TouchableOpacity 
+            style={styles.detailItem}
+            onPress={() => member && handleMemberPress(member.id)}
+          >
             <User size={20} color={Colors.light.primary} />
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Recipient</Text>
-              <Text style={styles.detailValue}>
+              <Text style={[styles.detailValue, member && styles.linkText]}>
                 {member ? formatMemberDisplay(member) : packageItem.recipientName}
               </Text>
               {member && (
                 <Text style={styles.detailSubValue}>Member ID: {member.memberId}</Text>
               )}
             </View>
-          </View>
+          </TouchableOpacity>
+          
+          {/* Associated Members Section */}
+          {associatedMembers.length > 0 && (
+            <View style={styles.detailItem}>
+              <Users size={20} color={Colors.light.primary} />
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Associated Members</Text>
+                {associatedMembers.map((associatedMember, index) => (
+                  <TouchableOpacity
+                    key={associatedMember.id}
+                    onPress={() => handleMemberPress(associatedMember.id)}
+                  >
+                    <Text style={[styles.detailValue, styles.linkText, index > 0 && styles.associatedMemberSpacing]}>
+                      {formatMemberDisplay(associatedMember)}
+                    </Text>
+                    <Text style={styles.detailSubValue}>ID: {associatedMember.memberId}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
           
           <View style={styles.detailItem}>
             <FileText size={20} color={Colors.light.primary} />
@@ -358,10 +403,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.light.text,
   },
+  linkText: {
+    color: Colors.light.primary,
+    textDecorationLine: 'underline',
+  },
   detailSubValue: {
     fontSize: 14,
     color: Colors.light.subtext,
     marginTop: 2,
+  },
+  associatedMemberSpacing: {
+    marginTop: 8,
   },
   notesContainer: {
     backgroundColor: Colors.light.secondary,
