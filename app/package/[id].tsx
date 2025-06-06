@@ -1,13 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   StyleSheet, 
   Text, 
   View, 
   ScrollView, 
-  Image, 
   TouchableOpacity, 
   Alert,
-  Linking
+  Image
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import Colors from '@/constants/colors';
@@ -21,23 +20,23 @@ import {
   Calendar, 
   MapPin, 
   FileText, 
-  CheckCircle, 
-  Clock,
+  Edit, 
   Trash2,
-  Phone,
-  Mail,
-  ChevronRight
+  CheckCircle,
+  Clock,
+  Camera,
+  Truck
 } from 'lucide-react-native';
 
 export default function PackageDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { packages, markAsPickedUp, removePackage } = usePackageStore();
+  const { packages, removePackage, markAsPickedUp } = usePackageStore();
   const { getMemberById } = useMemberStore();
   
-  const pkg = packages.find(p => p.id === id);
+  const packageItem = packages.find(p => p.id === id);
   
-  if (!pkg) {
+  if (!packageItem) {
     return (
       <EmptyState
         title="Package Not Found"
@@ -48,53 +47,29 @@ export default function PackageDetailScreen() {
     );
   }
   
-  const member = getMemberById(pkg.memberId);
+  const member = getMemberById(packageItem.memberId);
   
   const handleMarkAsPickedUp = () => {
     Alert.alert(
       "Confirm Package Pickup",
-      `Are you absolutely sure that ${pkg.recipientName} has picked up this package?\n\nTracking: ${pkg.trackingNumber}\nDescription: ${pkg.description}`,
+      "Are you sure this package has been picked up? This action cannot be undone.",
       [
         {
           text: "Cancel",
           style: "cancel"
         },
         { 
-          text: "Yes, Confirm Pickup", 
-          style: "default",
+          text: "Confirm Pickup", 
           onPress: () => {
-            // Secondary confirmation
-            Alert.alert(
-              "Final Confirmation",
-              "This action cannot be undone. The package will be marked as picked up and moved to the completed section.",
-              [
-                {
-                  text: "Cancel",
-                  style: "cancel"
-                },
-                {
-                  text: "Confirm Pickup",
-                  style: "destructive",
-                  onPress: () => {
-                    markAsPickedUp(id);
-                    Alert.alert(
-                      "Package Picked Up", 
-                      "The package has been successfully marked as picked up.",
-                      [
-                        { text: "OK", onPress: () => router.back() }
-                      ]
-                    );
-                  }
-                }
-              ]
-            );
+            markAsPickedUp(packageItem.id);
+            Alert.alert('Success', 'Package marked as picked up!');
           }
         }
       ]
     );
   };
   
-  const handleDelete = () => {
+  const handleDeletePackage = () => {
     Alert.alert(
       "Delete Package",
       "Are you sure you want to delete this package? This action cannot be undone.",
@@ -107,7 +82,7 @@ export default function PackageDetailScreen() {
           text: "Delete", 
           style: "destructive",
           onPress: () => {
-            removePackage(id);
+            removePackage(packageItem.id);
             router.back();
           }
         }
@@ -115,41 +90,32 @@ export default function PackageDetailScreen() {
     );
   };
   
-  const handleMemberPress = () => {
-    if (member) {
-      router.push(`/member/${member.id}`);
-    }
-  };
-  
-  const handleCall = () => {
-    if (member?.phone) {
-      Linking.openURL(`tel:${member.phone}`);
-    }
-  };
-  
-  const handleEmail = () => {
-    if (member?.email) {
-      Linking.openURL(`mailto:${member.email}`);
-    }
-  };
-  
-  const formatDate = (date?: Date) => {
-    if (!date) return 'N/A';
+  const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString();
+  };
+  
+  const formatMemberDisplay = (memberData: any) => {
+    let display = memberData.name;
+    if (memberData.aliases && memberData.aliases.length > 0) {
+      display += ` "${memberData.aliases.join('", "')}"`;
+    }
+    return display;
   };
   
   return (
     <View style={styles.container}>
       <Stack.Screen 
         options={{ 
-          title: pkg.trackingNumber,
+          title: packageItem.recipientName,
           headerRight: () => (
-            <TouchableOpacity
-              onPress={handleDelete}
-              style={styles.headerButton}
-            >
-              <Trash2 size={24} color={Colors.light.error} />
-            </TouchableOpacity>
+            <View style={styles.headerButtons}>
+              <TouchableOpacity
+                onPress={handleDeletePackage}
+                style={styles.headerButton}
+              >
+                <Trash2 size={24} color={Colors.light.flagRed} />
+              </TouchableOpacity>
+            </View>
           )
         }} 
       />
@@ -159,116 +125,104 @@ export default function PackageDetailScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.statusContainer}>
-          <View style={[
-            styles.statusBadge, 
-            pkg.status === 'pending' ? styles.pendingBadge : styles.pickedUpBadge
-          ]}>
-            {pkg.status === 'pending' ? (
-              <Clock size={20} color={Colors.light.error} />
-            ) : (
-              <CheckCircle size={20} color={Colors.light.success} />
-            )}
-            <Text style={[
-              styles.statusText,
-              pkg.status === 'pending' ? styles.pendingText : styles.pickedUpText
+        <View style={styles.statusHeader}>
+          <View style={styles.packageIcon}>
+            <Package2 size={32} color={Colors.light.primary} />
+          </View>
+          
+          <View style={styles.statusInfo}>
+            <Text style={styles.recipientName}>{packageItem.recipientName}</Text>
+            <View style={[
+              styles.statusBadge,
+              packageItem.status === 'pending' ? styles.pendingBadge : styles.pickedUpBadge
             ]}>
-              {pkg.status === 'pending' ? 'Awaiting Pickup' : 'Picked Up'}
-            </Text>
+              {packageItem.status === 'pending' ? (
+                <Clock size={16} color={Colors.light.flagRed} />
+              ) : (
+                <CheckCircle size={16} color={Colors.light.success} />
+              )}
+              <Text style={[
+                styles.statusText,
+                packageItem.status === 'pending' ? styles.pendingText : styles.pickedUpText
+              ]}>
+                {packageItem.status === 'pending' ? 'Awaiting Pickup' : 'Picked Up'}
+              </Text>
+            </View>
           </View>
         </View>
         
-        <Text style={styles.title}>{pkg.trackingNumber}</Text>
-        <Text style={styles.description}>{pkg.description}</Text>
-        
         <View style={styles.detailsContainer}>
-          <TouchableOpacity 
-            style={styles.detailItem}
-            onPress={handleMemberPress}
-          >
+          <View style={styles.detailItem}>
             <User size={20} color={Colors.light.primary} />
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Recipient</Text>
-              <Text style={[styles.detailValue, styles.linkText]}>
-                {pkg.recipientName}
-                {member ? ` (${member.memberId})` : ''}
+              <Text style={styles.detailValue}>
+                {member ? formatMemberDisplay(member) : packageItem.recipientName}
               </Text>
-            </View>
-            <ChevronRight size={20} color={Colors.light.primary} />
-          </TouchableOpacity>
-          
-          <View style={styles.detailItem}>
-            <Calendar size={20} color={Colors.light.primary} />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Arrival Date</Text>
-              <Text style={styles.detailValue}>{formatDate(pkg.arrivalDate)}</Text>
+              {member && (
+                <Text style={styles.detailSubValue}>Member ID: {member.memberId}</Text>
+              )}
             </View>
           </View>
           
-          {pkg.pickupDate && (
-            <View style={styles.detailItem}>
-              <CheckCircle size={20} color={Colors.light.success} />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Pickup Date</Text>
-                <Text style={styles.detailValue}>{formatDate(pkg.pickupDate)}</Text>
-              </View>
+          <View style={styles.detailItem}>
+            <FileText size={20} color={Colors.light.primary} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Description</Text>
+              <Text style={styles.detailValue}>{packageItem.description}</Text>
             </View>
-          )}
+          </View>
+          
+          <View style={styles.detailItem}>
+            <Truck size={20} color={Colors.light.primary} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Sender</Text>
+              <Text style={styles.detailValue}>{packageItem.sender}</Text>
+            </View>
+          </View>
           
           <View style={styles.detailItem}>
             <MapPin size={20} color={Colors.light.primary} />
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Storage Location</Text>
-              <Text style={styles.detailValue}>{pkg.storageLocation}</Text>
+              <Text style={styles.detailValue}>{packageItem.storageLocation}</Text>
             </View>
           </View>
           
           <View style={styles.detailItem}>
-            <Package2 size={20} color={Colors.light.primary} />
+            <Calendar size={20} color={Colors.light.primary} />
             <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Sender</Text>
-              <Text style={styles.detailValue}>{pkg.sender}</Text>
+              <Text style={styles.detailLabel}>Arrival Date</Text>
+              <Text style={styles.detailValue}>{formatDate(packageItem.arrivalDate)}</Text>
+            </View>
+          </View>
+          
+          {packageItem.pickupDate && (
+            <View style={styles.detailItem}>
+              <CheckCircle size={20} color={Colors.light.success} />
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Pickup Date</Text>
+                <Text style={styles.detailValue}>{formatDate(packageItem.pickupDate)}</Text>
+              </View>
+            </View>
+          )}
+          
+          <View style={styles.detailItem}>
+            <User size={20} color={Colors.light.primary} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Added By</Text>
+              <Text style={styles.detailValue}>{packageItem.addedBy}</Text>
             </View>
           </View>
         </View>
         
-        {member && (
-          <View style={styles.contactContainer}>
-            <Text style={styles.contactTitle}>Contact Information</Text>
-            
-            <View style={styles.contactActions}>
-              {member.phone && (
-                <TouchableOpacity 
-                  style={styles.contactButton}
-                  onPress={handleCall}
-                >
-                  <Phone size={20} color="#fff" />
-                  <Text style={styles.contactButtonText}>Call</Text>
-                </TouchableOpacity>
-              )}
-              
-              {member.email && (
-                <TouchableOpacity 
-                  style={styles.contactButton}
-                  onPress={handleEmail}
-                >
-                  <Mail size={20} color="#fff" />
-                  <Text style={styles.contactButtonText}>Email</Text>
-                </TouchableOpacity>
-              )}
+        {packageItem.notes && (
+          <View style={styles.notesContainer}>
+            <View style={styles.notesHeader}>
+              <FileText size={20} color={Colors.light.primary} />
+              <Text style={styles.notesTitle}>Notes</Text>
             </View>
-            
-            <View style={styles.contactDetails}>
-              {member.phone && (
-                <Text style={styles.contactDetail}>Phone: {member.phone}</Text>
-              )}
-              {member.email && (
-                <Text style={styles.contactDetail}>Email: {member.email}</Text>
-              )}
-              {member.address && (
-                <Text style={styles.contactDetail}>Address: {member.address}</Text>
-              )}
-            </View>
+            <Text style={styles.notesText}>{packageItem.notes}</Text>
           </View>
         )}
         
@@ -278,43 +232,28 @@ export default function PackageDetailScreen() {
           <View style={styles.photoGrid}>
             <View style={styles.photoItem}>
               <Text style={styles.photoLabel}>Package</Text>
-              <Image source={{ uri: pkg.packagePhotoUri }} style={styles.photo} />
+              <Image source={{ uri: packageItem.packagePhotoUri }} style={styles.photo} />
             </View>
             
             <View style={styles.photoItem}>
               <Text style={styles.photoLabel}>Label</Text>
-              <Image source={{ uri: pkg.labelPhotoUri }} style={styles.photo} />
+              <Image source={{ uri: packageItem.labelPhotoUri }} style={styles.photo} />
             </View>
             
             <View style={styles.photoItem}>
               <Text style={styles.photoLabel}>Storage</Text>
-              <Image source={{ uri: pkg.storagePhotoUri }} style={styles.photo} />
+              <Image source={{ uri: packageItem.storagePhotoUri }} style={styles.photo} />
             </View>
           </View>
-        </View>
-        
-        {pkg.notes && (
-          <View style={styles.notesContainer}>
-            <View style={styles.notesHeader}>
-              <FileText size={20} color={Colors.light.primary} />
-              <Text style={styles.notesTitle}>Notes</Text>
-            </View>
-            <Text style={styles.notesText}>{pkg.notes}</Text>
-          </View>
-        )}
-        
-        <View style={styles.metaContainer}>
-          <Text style={styles.metaText}>Added by: {pkg.addedBy}</Text>
-          <Text style={styles.metaText}>Added on: {formatDate(pkg.arrivalDate)}</Text>
         </View>
       </ScrollView>
       
-      {pkg.status === 'pending' && (
+      {packageItem.status === 'pending' && (
         <View style={styles.footer}>
           <Button
             title="Mark as Picked Up"
             onPress={handleMarkAsPickedUp}
-            style={styles.footerButton}
+            style={styles.pickupButton}
             icon={<CheckCircle size={20} color="#fff" />}
           />
         </View>
@@ -328,62 +267,73 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.light.background,
   },
+  headerButtons: {
+    flexDirection: 'row',
+  },
   headerButton: {
     padding: 8,
+    marginLeft: 8,
   },
   scrollView: {
     flex: 1,
   },
   content: {
-    padding: 16,
     paddingBottom: 100,
   },
-  statusContainer: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  statusBadge: {
+  statusHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    padding: 16,
+    paddingBottom: 24,
   },
-  pendingBadge: {
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+  packageIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.light.secondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
   },
-  pickedUpBadge: {
-    backgroundColor: 'rgba(0, 184, 148, 0.1)',
+  statusInfo: {
+    flex: 1,
   },
-  statusText: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  pendingText: {
-    color: Colors.light.error,
-  },
-  pickedUpText: {
-    color: Colors.light.success,
-  },
-  title: {
+  recipientName: {
     fontSize: 24,
     fontWeight: '700',
     color: Colors.light.text,
     marginBottom: 8,
-    textAlign: 'center',
   },
-  description: {
-    fontSize: 16,
-    color: Colors.light.subtext,
-    lineHeight: 24,
-    marginBottom: 24,
-    textAlign: 'center',
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+  pendingBadge: {
+    backgroundColor: 'rgba(220, 20, 60, 0.1)',
+  },
+  pickedUpBadge: {
+    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  pendingText: {
+    color: Colors.light.flagRed,
+  },
+  pickedUpText: {
+    color: Colors.light.success,
   },
   detailsContainer: {
     backgroundColor: Colors.light.card,
     borderRadius: 12,
     padding: 16,
+    marginHorizontal: 16,
     marginBottom: 24,
     shadowColor: Colors.light.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -393,7 +343,6 @@ const styles = StyleSheet.create({
   },
   detailItem: {
     flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 16,
   },
   detailContent: {
@@ -409,48 +358,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.light.text,
   },
-  linkText: {
-    color: Colors.light.primary,
+  detailSubValue: {
+    fontSize: 14,
+    color: Colors.light.subtext,
+    marginTop: 2,
   },
-  contactContainer: {
+  notesContainer: {
     backgroundColor: Colors.light.secondary,
     borderRadius: 12,
     padding: 16,
+    marginHorizontal: 16,
     marginBottom: 24,
   },
-  contactTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.light.text,
-    marginBottom: 16,
-  },
-  contactActions: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  contactButton: {
+  notesHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.light.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginRight: 12,
+    marginBottom: 8,
   },
-  contactButtonText: {
-    color: '#fff',
+  notesTitle: {
+    fontSize: 16,
     fontWeight: '600',
+    color: Colors.light.primary,
     marginLeft: 8,
   },
-  contactDetails: {
-    gap: 4,
-  },
-  contactDetail: {
-    fontSize: 14,
+  notesText: {
+    fontSize: 15,
     color: Colors.light.text,
+    lineHeight: 22,
   },
   photosContainer: {
+    paddingHorizontal: 16,
     marginBottom: 24,
   },
   photosTitle: {
@@ -478,43 +415,7 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 1,
     borderRadius: 8,
-    backgroundColor: '#E1E1E1',
-  },
-  notesContainer: {
     backgroundColor: Colors.light.card,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-    shadowColor: Colors.light.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  notesHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  notesTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.light.primary,
-    marginLeft: 8,
-  },
-  notesText: {
-    fontSize: 15,
-    color: Colors.light.text,
-    lineHeight: 22,
-  },
-  metaContainer: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    fontSize: 12,
-    color: Colors.light.subtext,
-    fontStyle: 'italic',
   },
   footer: {
     position: 'absolute',
@@ -527,7 +428,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.light.border,
   },
-  footerButton: {
+  pickupButton: {
     width: '100%',
+    backgroundColor: Colors.light.success,
   },
 });

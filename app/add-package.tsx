@@ -8,23 +8,24 @@ import {
   TouchableOpacity, 
   Alert,
   Image,
-  Platform
+  Platform,
+  FlatList
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import Colors from '@/constants/colors';
 import { usePackageStore } from '@/store/packageStore';
 import { useMemberStore } from '@/store/memberStore';
+import { DUTY_OFFICERS } from '@/constants/dutyOfficers';
 import Button from '@/components/Button';
-import { Camera, X, User, Plus } from 'lucide-react-native';
+import { Camera, X, User, Plus, ChevronDown, Check } from 'lucide-react-native';
 
 type PhotoType = 'package' | 'label' | 'storage';
 
 export default function AddPackageScreen() {
   const router = useRouter();
   const { addPackage } = usePackageStore();
-  const { members, addMember } = useMemberStore();
+  const { members, addMember, searchMembers } = useMemberStore();
   
-  const [trackingNumber, setTrackingNumber] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [selectedMemberId, setSelectedMemberId] = useState('');
   const [description, setDescription] = useState('');
@@ -40,11 +41,41 @@ export default function AddPackageScreen() {
   const [showCamera, setShowCamera] = useState(false);
   const [currentPhotoType, setCurrentPhotoType] = useState<PhotoType>('package');
   
+  // Member search and selection
+  const [showMemberDropdown, setShowMemberDropdown] = useState(false);
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [filteredMembers, setFilteredMembers] = useState(members);
+  
+  // Duty officer dropdown
+  const [showDutyOfficerDropdown, setShowDutyOfficerDropdown] = useState(false);
+  
   // New member creation
   const [showNewMemberForm, setShowNewMemberForm] = useState(false);
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberPhone, setNewMemberPhone] = useState('');
   const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [newMemberAliases, setNewMemberAliases] = useState('');
+  
+  const handleMemberSearch = (query: string) => {
+    setMemberSearchQuery(query);
+    setRecipientName(query);
+    
+    if (query.trim()) {
+      const results = searchMembers(query);
+      setFilteredMembers(results);
+      setShowMemberDropdown(true);
+    } else {
+      setFilteredMembers(members);
+      setShowMemberDropdown(false);
+    }
+  };
+  
+  const handleMemberSelect = (member: any) => {
+    setSelectedMemberId(member.id);
+    setRecipientName(member.name);
+    setMemberSearchQuery(member.name);
+    setShowMemberDropdown(false);
+  };
   
   const handleTakePhoto = (photoType: PhotoType) => {
     setCurrentPhotoType(photoType);
@@ -78,12 +109,17 @@ export default function AddPackageScreen() {
     }
     
     try {
+      const aliases = newMemberAliases.trim() 
+        ? newMemberAliases.split(',').map(alias => alias.trim()).filter(Boolean)
+        : undefined;
+      
       const memberData = {
         name: newMemberName.trim(),
         memberId: `PKG${Date.now()}`,
         joinDate: new Date(),
         ...(newMemberPhone.trim() && { phone: newMemberPhone.trim() }),
         ...(newMemberEmail.trim() && { email: newMemberEmail.trim() }),
+        ...(aliases && aliases.length > 0 && { aliases }),
       };
       
       const memberId = addMember(memberData);
@@ -94,17 +130,13 @@ export default function AddPackageScreen() {
       setNewMemberName('');
       setNewMemberPhone('');
       setNewMemberEmail('');
+      setNewMemberAliases('');
     } catch (error) {
       Alert.alert('Error', 'Failed to create member. Please try again.');
     }
   };
   
   const handleSubmit = () => {
-    if (!trackingNumber.trim()) {
-      Alert.alert('Error', 'Please enter a tracking number.');
-      return;
-    }
-    
     if (!recipientName.trim()) {
       Alert.alert('Error', 'Please enter a recipient name.');
       return;
@@ -131,7 +163,7 @@ export default function AddPackageScreen() {
     }
     
     if (!addedBy.trim()) {
-      Alert.alert('Error', 'Please enter who added this package.');
+      Alert.alert('Error', 'Please select who added this package.');
       return;
     }
     
@@ -141,7 +173,6 @@ export default function AddPackageScreen() {
     }
     
     addPackage({
-      trackingNumber: trackingNumber.trim(),
       recipientName: recipientName.trim(),
       memberId: selectedMemberId,
       description: description.trim(),
@@ -154,9 +185,41 @@ export default function AddPackageScreen() {
       addedBy: addedBy.trim(),
     });
     
-    Alert.alert('Success', 'Package added successfully!', [
-      { text: 'OK', onPress: () => router.back() }
-    ]);
+    Alert.alert(
+      'Success', 
+      'Package added successfully!',
+      [
+        { 
+          text: 'Add Another Package', 
+          onPress: () => {
+            // Reset form for another package
+            setRecipientName('');
+            setSelectedMemberId('');
+            setDescription('');
+            setSender('');
+            setStorageLocation('');
+            setNotes('');
+            setPackagePhotoUri('');
+            setLabelPhotoUri('');
+            setStoragePhotoUri('');
+            setMemberSearchQuery('');
+            // Keep addedBy selected for convenience
+          }
+        },
+        { 
+          text: 'Done', 
+          onPress: () => router.back() 
+        }
+      ]
+    );
+  };
+  
+  const formatMemberDisplay = (member: any) => {
+    let display = member.name;
+    if (member.aliases && member.aliases.length > 0) {
+      display += ` "${member.aliases.join('", "')}"`;
+    }
+    return display;
   };
   
   if (showCamera) {
@@ -195,18 +258,116 @@ export default function AddPackageScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Package Information</Text>
+          <Text style={styles.sectionTitle}>Recipient Information</Text>
           
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Tracking Number *</Text>
-            <TextInput
-              style={styles.input}
-              value={trackingNumber}
-              onChangeText={setTrackingNumber}
-              placeholder="Enter tracking number"
-              placeholderTextColor={Colors.light.subtext}
-            />
+            <Text style={styles.label}>Recipient Name *</Text>
+            <View style={styles.memberSearchContainer}>
+              <TextInput
+                style={styles.input}
+                value={recipientName}
+                onChangeText={handleMemberSearch}
+                placeholder="Start typing recipient name..."
+                placeholderTextColor={Colors.light.subtext}
+              />
+              
+              {showMemberDropdown && filteredMembers.length > 0 && (
+                <View style={styles.memberDropdown}>
+                  <FlatList
+                    data={filteredMembers.slice(0, 5)}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={styles.memberDropdownItem}
+                        onPress={() => handleMemberSelect(item)}
+                      >
+                        <User size={16} color={Colors.light.primary} />
+                        <View style={styles.memberDropdownContent}>
+                          <Text style={styles.memberDropdownName}>
+                            {formatMemberDisplay(item)}
+                          </Text>
+                          <Text style={styles.memberDropdownId}>ID: {item.memberId}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                  />
+                  
+                  <TouchableOpacity
+                    style={styles.createMemberOption}
+                    onPress={() => {
+                      setNewMemberName(recipientName);
+                      setShowNewMemberForm(true);
+                      setShowMemberDropdown(false);
+                    }}
+                  >
+                    <Plus size={16} color={Colors.light.primary} />
+                    <Text style={styles.createMemberText}>
+                      Create new member: "{recipientName}"
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
           </View>
+          
+          {showNewMemberForm && (
+            <View style={styles.newMemberForm}>
+              <Text style={styles.newMemberTitle}>Create New Member</Text>
+              
+              <TextInput
+                style={styles.input}
+                value={newMemberName}
+                onChangeText={setNewMemberName}
+                placeholder="Full name *"
+                placeholderTextColor={Colors.light.subtext}
+              />
+              
+              <TextInput
+                style={styles.input}
+                value={newMemberAliases}
+                onChangeText={setNewMemberAliases}
+                placeholder="Aliases (comma separated, optional)"
+                placeholderTextColor={Colors.light.subtext}
+              />
+              
+              <TextInput
+                style={styles.input}
+                value={newMemberPhone}
+                onChangeText={setNewMemberPhone}
+                placeholder="Phone number (optional)"
+                placeholderTextColor={Colors.light.subtext}
+                keyboardType="phone-pad"
+              />
+              
+              <TextInput
+                style={styles.input}
+                value={newMemberEmail}
+                onChangeText={setNewMemberEmail}
+                placeholder="Email address (optional)"
+                placeholderTextColor={Colors.light.subtext}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              
+              <View style={styles.newMemberActions}>
+                <Button
+                  title="Cancel"
+                  onPress={() => setShowNewMemberForm(false)}
+                  variant="outline"
+                  style={styles.newMemberActionButton}
+                />
+                <Button
+                  title="Create"
+                  onPress={handleCreateNewMember}
+                  style={styles.newMemberActionButton}
+                />
+              </View>
+            </View>
+          )}
+        </View>
+        
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Package Information</Text>
           
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Description *</Text>
@@ -239,107 +400,6 @@ export default function AddPackageScreen() {
               placeholder="e.g., Shelf A-3, Room 101"
               placeholderTextColor={Colors.light.subtext}
             />
-          </View>
-        </View>
-        
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recipient Information</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Recipient Name *</Text>
-            <TextInput
-              style={styles.input}
-              value={recipientName}
-              onChangeText={setRecipientName}
-              placeholder="Full name of recipient"
-              placeholderTextColor={Colors.light.subtext}
-            />
-          </View>
-          
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Assign to Member *</Text>
-            
-            {!showNewMemberForm ? (
-              <View style={styles.memberSelection}>
-                <ScrollView 
-                  style={styles.memberList}
-                  contentContainerStyle={styles.memberListContent}
-                >
-                  {members.map(member => (
-                    <TouchableOpacity
-                      key={member.id}
-                      style={[
-                        styles.memberItem,
-                        selectedMemberId === member.id && styles.selectedMemberItem
-                      ]}
-                      onPress={() => {
-                        setSelectedMemberId(member.id);
-                        setRecipientName(member.name);
-                      }}
-                    >
-                      <User size={20} color={Colors.light.primary} />
-                      <View style={styles.memberInfo}>
-                        <Text style={styles.memberName}>{member.name}</Text>
-                        <Text style={styles.memberId}>ID: {member.memberId}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-                
-                <TouchableOpacity
-                  style={styles.newMemberButton}
-                  onPress={() => setShowNewMemberForm(true)}
-                >
-                  <Plus size={20} color={Colors.light.primary} />
-                  <Text style={styles.newMemberButtonText}>Create New Member</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.newMemberForm}>
-                <Text style={styles.newMemberTitle}>Create New Member</Text>
-                
-                <TextInput
-                  style={styles.input}
-                  value={newMemberName}
-                  onChangeText={setNewMemberName}
-                  placeholder="Full name *"
-                  placeholderTextColor={Colors.light.subtext}
-                />
-                
-                <TextInput
-                  style={styles.input}
-                  value={newMemberPhone}
-                  onChangeText={setNewMemberPhone}
-                  placeholder="Phone number (optional)"
-                  placeholderTextColor={Colors.light.subtext}
-                  keyboardType="phone-pad"
-                />
-                
-                <TextInput
-                  style={styles.input}
-                  value={newMemberEmail}
-                  onChangeText={setNewMemberEmail}
-                  placeholder="Email address (optional)"
-                  placeholderTextColor={Colors.light.subtext}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-                
-                <View style={styles.newMemberActions}>
-                  <Button
-                    title="Cancel"
-                    onPress={() => setShowNewMemberForm(false)}
-                    variant="outline"
-                    style={styles.newMemberActionButton}
-                  />
-                  <Button
-                    title="Create"
-                    onPress={handleCreateNewMember}
-                    style={styles.newMemberActionButton}
-                  />
-                </View>
-              </View>
-            )}
           </View>
         </View>
         
@@ -396,13 +456,38 @@ export default function AddPackageScreen() {
           
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Added By *</Text>
-            <TextInput
-              style={styles.input}
-              value={addedBy}
-              onChangeText={setAddedBy}
-              placeholder="Your name or duty officer"
-              placeholderTextColor={Colors.light.subtext}
-            />
+            <TouchableOpacity
+              style={[styles.input, styles.dropdownButton]}
+              onPress={() => setShowDutyOfficerDropdown(!showDutyOfficerDropdown)}
+            >
+              <Text style={[styles.dropdownText, !addedBy && styles.placeholderText]}>
+                {addedBy || 'Select duty officer'}
+              </Text>
+              <ChevronDown size={20} color={Colors.light.subtext} />
+            </TouchableOpacity>
+            
+            {showDutyOfficerDropdown && (
+              <View style={styles.dropdown}>
+                <FlatList
+                  data={DUTY_OFFICERS}
+                  keyExtractor={(item) => item}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.dropdownItem}
+                      onPress={() => {
+                        setAddedBy(item);
+                        setShowDutyOfficerDropdown(false);
+                      }}
+                    >
+                      <Text style={styles.dropdownItemText}>{item}</Text>
+                      {addedBy === item && (
+                        <Check size={16} color={Colors.light.primary} />
+                      )}
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            )}
           </View>
           
           <View style={styles.inputGroup}>
@@ -474,54 +559,89 @@ const styles = StyleSheet.create({
     height: 80,
     textAlignVertical: 'top',
   },
-  memberSelection: {
+  memberSearchContainer: {
+    position: 'relative',
+  },
+  memberDropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
     backgroundColor: Colors.light.card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.light.border,
+    maxHeight: 250,
+    zIndex: 1000,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  memberList: {
-    maxHeight: 200,
-  },
-  memberListContent: {
-    padding: 8,
-  },
-  memberItem: {
+  memberDropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    borderRadius: 8,
-    marginBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
   },
-  selectedMemberItem: {
-    backgroundColor: Colors.light.secondary,
-  },
-  memberInfo: {
-    marginLeft: 12,
+  memberDropdownContent: {
+    marginLeft: 8,
     flex: 1,
   },
-  memberName: {
-    fontSize: 16,
+  memberDropdownName: {
+    fontSize: 14,
     fontWeight: '500',
     color: Colors.light.text,
   },
-  memberId: {
-    fontSize: 14,
+  memberDropdownId: {
+    fontSize: 12,
     color: Colors.light.subtext,
   },
-  newMemberButton: {
+  createMemberOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: Colors.light.border,
+    padding: 12,
+    backgroundColor: Colors.light.secondary,
   },
-  newMemberButtonText: {
-    fontSize: 16,
+  createMemberText: {
+    fontSize: 14,
     color: Colors.light.primary,
     fontWeight: '500',
     marginLeft: 8,
+  },
+  dropdownButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dropdownText: {
+    fontSize: 16,
+    color: Colors.light.text,
+  },
+  placeholderText: {
+    color: Colors.light.subtext,
+  },
+  dropdown: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    maxHeight: 200,
+    marginTop: 4,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    color: Colors.light.text,
   },
   newMemberForm: {
     backgroundColor: Colors.light.card,
@@ -529,6 +649,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: Colors.light.border,
+    marginTop: 16,
   },
   newMemberTitle: {
     fontSize: 16,

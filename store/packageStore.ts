@@ -10,6 +10,7 @@ interface PackageState {
   removePackage: (id: string) => void;
   markAsPickedUp: (id: string, pickupNotes?: string) => void;
   getPackagesByMember: (memberId: string) => Package[];
+  massUpdateStorageLocation: (packageIds: string[], newLocation: string) => void;
   setPackages: (packages: Package[]) => void;
   clearAllData: () => void;
 }
@@ -18,7 +19,6 @@ interface PackageState {
 const samplePackages: Package[] = [
   {
     id: '1',
-    trackingNumber: 'UPS123456789',
     recipientName: 'John Smith',
     memberId: '1',
     description: 'Medical supplies order',
@@ -34,7 +34,6 @@ const samplePackages: Package[] = [
   },
   {
     id: '2',
-    trackingNumber: 'FEDEX987654321',
     recipientName: 'Maria Garcia',
     memberId: '2',
     description: 'Personal package',
@@ -88,7 +87,8 @@ export const usePackageStore = create<PackageState>()(
               ...pkg,
               status: 'picked-up' as PackageStatus,
               pickupDate: new Date(),
-              notes: pickupNotes ? `${pkg.notes || ''}\nPickup: ${pickupNotes}`.trim() : pkg.notes,
+              notes: pickupNotes ? `${pkg.notes || ''}
+Pickup: ${pickupNotes}`.trim() : pkg.notes,
             };
           }
           return pkg;
@@ -98,6 +98,12 @@ export const usePackageStore = create<PackageState>()(
       getPackagesByMember: (memberId) => {
         return get().packages.filter(pkg => pkg.memberId === memberId);
       },
+      
+      massUpdateStorageLocation: (packageIds, newLocation) => set((state) => ({
+        packages: state.packages.map((pkg) => 
+          packageIds.includes(pkg.id) ? { ...pkg, storageLocation: newLocation } : pkg
+        ),
+      })),
       
       setPackages: (packages) => {
         set({ packages });

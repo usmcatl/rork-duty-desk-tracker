@@ -9,6 +9,10 @@ interface MemberState {
   updateMember: (member: Member) => void;
   removeMember: (id: string) => void;
   getMemberById: (id: string) => Member | undefined;
+  getAssociatedMembers: (id: string) => Member[];
+  addAssociation: (memberId: string, associatedMemberId: string) => void;
+  removeAssociation: (memberId: string, associatedMemberId: string) => void;
+  searchMembers: (query: string) => Member[];
   setMembers: (members: Member[]) => void;
   clearAllData: () => void;
 }
@@ -18,22 +22,27 @@ const sampleMembers: Member[] = [
   {
     id: '1',
     name: 'John Smith',
+    aliases: ['Johnny', 'J. Smith'],
     memberId: 'MED001',
     phone: '+1 (555) 123-4567',
     email: 'john.smith@example.com',
     joinDate: new Date('2024-01-15T10:30:00.000Z'),
+    associatedMembers: ['2'],
   },
   {
     id: '2',
     name: 'Maria Garcia',
+    aliases: ['Mary Garcia'],
     memberId: 'MED002',
     phone: '+1 (555) 987-6543',
     email: 'maria.garcia@example.com',
     joinDate: new Date('2024-02-20T14:15:00.000Z'),
+    associatedMembers: ['1'],
   },
   {
     id: '3',
     name: 'David Johnson',
+    aliases: ['Dave Johnson', 'D.J.'],
     memberId: 'MED003',
     phone: '+1 (555) 456-7890',
     email: 'david.johnson@example.com',
@@ -79,6 +88,60 @@ export const useMemberStore = create<MemberState>()(
       
       getMemberById: (id) => {
         return get().members.find(member => member.id === id);
+      },
+      
+      getAssociatedMembers: (id) => {
+        const member = get().getMemberById(id);
+        if (!member || !member.associatedMembers) return [];
+        
+        return member.associatedMembers
+          .map(associatedId => get().getMemberById(associatedId))
+          .filter(Boolean) as Member[];
+      },
+      
+      addAssociation: (memberId, associatedMemberId) => {
+        set((state) => ({
+          members: state.members.map((member) => {
+            if (member.id === memberId) {
+              const currentAssociations = member.associatedMembers || [];
+              if (!currentAssociations.includes(associatedMemberId)) {
+                return {
+                  ...member,
+                  associatedMembers: [...currentAssociations, associatedMemberId]
+                };
+              }
+            }
+            return member;
+          }),
+        }));
+      },
+      
+      removeAssociation: (memberId, associatedMemberId) => {
+        set((state) => ({
+          members: state.members.map((member) => {
+            if (member.id === memberId && member.associatedMembers) {
+              return {
+                ...member,
+                associatedMembers: member.associatedMembers.filter(id => id !== associatedMemberId)
+              };
+            }
+            return member;
+          }),
+        }));
+      },
+      
+      searchMembers: (query) => {
+        const lowerQuery = query.toLowerCase();
+        return get().members.filter(member => {
+          const nameMatch = member.name.toLowerCase().includes(lowerQuery);
+          const memberIdMatch = member.memberId.toLowerCase().includes(lowerQuery);
+          const phoneMatch = member.phone?.includes(query) || false;
+          const aliasMatch = member.aliases?.some(alias => 
+            alias.toLowerCase().includes(lowerQuery)
+          ) || false;
+          
+          return nameMatch || memberIdMatch || phoneMatch || aliasMatch;
+        });
       },
       
       setMembers: (members) => {

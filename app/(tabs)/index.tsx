@@ -41,7 +41,10 @@ export default function DashboardScreen() {
     return memberSearchQuery === '' || 
       member.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
       member.memberId.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
-      (member.phone && member.phone.includes(memberSearchQuery));
+      (member.phone && member.phone.includes(memberSearchQuery)) ||
+      (member.aliases && member.aliases.some(alias => 
+        alias.toLowerCase().includes(memberSearchQuery.toLowerCase())
+      ));
   });
   
   const handleAddEquipment = () => {
@@ -66,6 +69,14 @@ export default function DashboardScreen() {
     router.push('/members');
   };
   
+  const formatMemberDisplay = (member: any) => {
+    let display = member.name;
+    if (member.aliases && member.aliases.length > 0) {
+      display += ` "${member.aliases.join('", "')}"`;
+    }
+    return display;
+  };
+  
   return (
     <View style={styles.container}>
       <ScrollView 
@@ -82,7 +93,7 @@ export default function DashboardScreen() {
           </View>
           
           <View style={[styles.statCard, styles.checkedOutStat]}>
-            <CheckSquare size={24} color={Colors.light.error} />
+            <CheckSquare size={24} color={Colors.light.flagRed} />
             <Text style={styles.statNumber}>{checkedOutEquipment.length}</Text>
             <Text style={styles.statLabel}>Checked Out</Text>
           </View>
@@ -130,7 +141,7 @@ export default function DashboardScreen() {
                         {record.returnDate ? 'Returned:' : 'Checked Out:'} {item.name}
                       </Text>
                       <Text style={styles.activityMeta}>
-                        {member ? member.name : 'Unknown Member'} • {new Date(record.checkoutDate).toLocaleDateString()}
+                        {member ? formatMemberDisplay(member) : 'Unknown Member'} • {new Date(record.checkoutDate).toLocaleDateString()}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -150,16 +161,16 @@ export default function DashboardScreen() {
                       {pkg.status === 'picked-up' ? (
                         <CheckSquare size={20} color={Colors.light.success} />
                       ) : (
-                        <Clock size={20} color={Colors.light.error} />
+                        <Clock size={20} color={Colors.light.flagRed} />
                       )}
                     </View>
                     
                     <View style={styles.activityContent}>
                       <Text style={styles.activityTitle}>
-                        {pkg.status === 'picked-up' ? 'Package Picked Up:' : 'Package Arrived:'} {pkg.trackingNumber}
+                        {pkg.status === 'picked-up' ? 'Package Picked Up:' : 'Package Arrived:'} {pkg.recipientName}
                       </Text>
                       <Text style={styles.activityMeta}>
-                        {member ? member.name : pkg.recipientName} • {new Date(pkg.arrivalDate).toLocaleDateString()}
+                        {member ? formatMemberDisplay(member) : pkg.recipientName} • {new Date(pkg.arrivalDate).toLocaleDateString()}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -231,7 +242,7 @@ export default function DashboardScreen() {
                   <Search size={20} color={Colors.light.subtext} style={styles.searchIcon} />
                   <TextInput
                     style={styles.searchInput}
-                    placeholder="Search by name, ID, or phone..."
+                    placeholder="Search by name, ID, phone, or alias..."
                     value={memberSearchQuery}
                     onChangeText={setMemberSearchQuery}
                     placeholderTextColor={Colors.light.subtext}
@@ -253,7 +264,9 @@ export default function DashboardScreen() {
                         <View style={styles.memberItemLeft}>
                           <User size={20} color={Colors.light.primary} />
                           <View style={styles.memberItemInfo}>
-                            <Text style={styles.memberItemName}>{member.name}</Text>
+                            <Text style={styles.memberItemName}>
+                              {formatMemberDisplay(member)}
+                            </Text>
                             <Text style={styles.memberItemId}>ID: {member.memberId}</Text>
                           </View>
                         </View>
@@ -287,7 +300,7 @@ export default function DashboardScreen() {
                 <View style={styles.memberLookupContent}>
                   <Text style={styles.memberLookupTitle}>Member Lookup</Text>
                   <Text style={styles.memberLookupDescription}>
-                    Search for members by name, ID, or phone number
+                    Search for members by name, ID, phone, or alias
                   </Text>
                 </View>
                 <ChevronRight size={20} color={Colors.light.primary} />
@@ -384,16 +397,16 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   availableStat: {
-    backgroundColor: 'rgba(0, 184, 148, 0.1)',
+    backgroundColor: 'rgba(40, 167, 69, 0.1)',
   },
   checkedOutStat: {
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    backgroundColor: 'rgba(220, 20, 60, 0.1)',
   },
   packagesStat: {
-    backgroundColor: 'rgba(0, 119, 204, 0.1)',
+    backgroundColor: 'rgba(0, 40, 104, 0.1)',
   },
   membersStat: {
-    backgroundColor: 'rgba(0, 119, 204, 0.1)',
+    backgroundColor: 'rgba(0, 40, 104, 0.1)',
   },
   statNumber: {
     fontSize: 24,
@@ -610,7 +623,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.light.primary,
+    backgroundColor: Colors.light.gold,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: Colors.light.primary,
@@ -624,14 +637,14 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: Colors.light.secondary,
+    backgroundColor: '#000000',
     shadowColor: Colors.light.shadow,
   },
   tertiaryFab: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#6B7280',
+    backgroundColor: Colors.light.flagRed,
     shadowColor: Colors.light.shadow,
   },
 });

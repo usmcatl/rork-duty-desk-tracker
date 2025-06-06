@@ -2,7 +2,6 @@ export type PackageStatus = 'pending' | 'picked-up';
 
 export type Package = {
   id: string;
-  trackingNumber: string;
   recipientName: string;
   memberId: string; // Reference to the member who will receive the package
   description: string;

@@ -28,13 +28,15 @@ import {
   Trash2,
   CheckSquare,
   ChevronRight,
-  Package2
+  Package2,
+  Users,
+  Tag
 } from 'lucide-react-native';
 
 export default function MemberDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { members, removeMember } = useMemberStore();
+  const { members, removeMember, getAssociatedMembers } = useMemberStore();
   const { checkoutRecords, equipment } = useEquipmentStore();
   const { getPackagesByMember } = usePackageStore();
   
@@ -64,6 +66,9 @@ export default function MemberDetailScreen() {
     .sort((a, b) => new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime());
   
   const pendingPackages = memberPackages.filter(pkg => pkg.status === 'pending');
+  
+  // Get associated members
+  const associatedMembers = getAssociatedMembers(id);
   
   const handleEditMember = () => {
     router.push(`/edit-member/${id}`);
@@ -116,6 +121,14 @@ export default function MemberDetailScreen() {
     return new Date(date).toLocaleDateString();
   };
   
+  const formatMemberDisplay = (memberData: any) => {
+    let display = memberData.name;
+    if (memberData.aliases && memberData.aliases.length > 0) {
+      display += ` "${memberData.aliases.join('", "')}"`;
+    }
+    return display;
+  };
+  
   return (
     <View style={styles.container}>
       <Stack.Screen 
@@ -133,7 +146,7 @@ export default function MemberDetailScreen() {
                 onPress={handleDeleteMember}
                 style={styles.headerButton}
               >
-                <Trash2 size={24} color={Colors.light.error} />
+                <Trash2 size={24} color={Colors.light.flagRed} />
               </TouchableOpacity>
             </View>
           )
@@ -151,7 +164,7 @@ export default function MemberDetailScreen() {
           </View>
           
           <View style={styles.profileInfo}>
-            <Text style={styles.memberName}>{member.name}</Text>
+            <Text style={styles.memberName}>{formatMemberDisplay(member)}</Text>
             <Text style={styles.memberId}>Member ID: {member.memberId}</Text>
           </View>
         </View>
@@ -195,6 +208,16 @@ export default function MemberDetailScreen() {
             </View>
           </View>
           
+          {member.aliases && member.aliases.length > 0 && (
+            <View style={styles.detailItem}>
+              <Tag size={20} color={Colors.light.primary} />
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Aliases</Text>
+                <Text style={styles.detailValue}>"{member.aliases.join('", "')}"</Text>
+              </View>
+            </View>
+          )}
+          
           <View style={styles.detailItem}>
             <MapPin size={20} color={Colors.light.primary} />
             <View style={styles.detailContent}>
@@ -211,6 +234,34 @@ export default function MemberDetailScreen() {
             </View>
           </View>
         </View>
+        
+        {/* Associated Members Section */}
+        {associatedMembers.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Associated Members</Text>
+            
+            {associatedMembers.map(associatedMember => (
+              <TouchableOpacity
+                key={associatedMember.id}
+                style={styles.associatedMemberItem}
+                onPress={() => router.push(`/member/${associatedMember.id}`)}
+              >
+                <View style={styles.associatedMemberLeft}>
+                  <Users size={20} color={Colors.light.primary} />
+                  <View style={styles.associatedMemberContent}>
+                    <Text style={styles.associatedMemberName}>
+                      {formatMemberDisplay(associatedMember)}
+                    </Text>
+                    <Text style={styles.associatedMemberInfo}>
+                      ID: {associatedMember.memberId}
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRight size={20} color={Colors.light.subtext} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         
         {member.notes && (
           <View style={styles.notesContainer}>
@@ -449,6 +500,39 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.light.text,
     marginBottom: 16,
+  },
+  associatedMemberItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.light.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  associatedMemberLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  associatedMemberContent: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  associatedMemberName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.light.text,
+    marginBottom: 4,
+  },
+  associatedMemberInfo: {
+    fontSize: 14,
+    color: Colors.light.subtext,
   },
   checkoutItem: {
     flexDirection: 'row',

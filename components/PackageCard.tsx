@@ -20,6 +20,14 @@ export default function PackageCard({ package: pkg }: PackageCardProps) {
     return new Date(date).toLocaleDateString();
   };
   
+  const formatMemberDisplay = (memberData: any) => {
+    let display = memberData.name;
+    if (memberData.aliases && memberData.aliases.length > 0) {
+      display += ` "${memberData.aliases.join('", "')}"`;
+    }
+    return display;
+  };
+  
   const handlePress = () => {
     router.push(`/package/${pkg.id}`);
   };
@@ -32,7 +40,7 @@ export default function PackageCard({ package: pkg }: PackageCardProps) {
         </View>
         
         <View style={styles.headerContent}>
-          <Text style={styles.trackingNumber}>{pkg.trackingNumber}</Text>
+          <Text style={styles.recipientName}>{pkg.recipientName}</Text>
           <Text style={styles.description} numberOfLines={1}>
             {pkg.description}
           </Text>
@@ -43,7 +51,7 @@ export default function PackageCard({ package: pkg }: PackageCardProps) {
           pkg.status === 'pending' ? styles.pendingBadge : styles.pickedUpBadge
         ]}>
           {pkg.status === 'pending' ? (
-            <Clock size={14} color={Colors.light.error} />
+            <Clock size={14} color={Colors.light.flagRed} />
           ) : (
             <CheckCircle size={14} color={Colors.light.success} />
           )}
@@ -60,7 +68,7 @@ export default function PackageCard({ package: pkg }: PackageCardProps) {
         <View style={styles.detailItem}>
           <User size={16} color={Colors.light.primary} />
           <Text style={styles.detailText}>
-            {pkg.recipientName} {member ? `(${member.memberId})` : ''}
+            {member ? formatMemberDisplay(member) : pkg.recipientName} {member ? `(${member.memberId})` : ''}
           </Text>
         </View>
         
@@ -117,7 +125,7 @@ const styles = StyleSheet.create({
   headerContent: {
     flex: 1,
   },
-  trackingNumber: {
+  recipientName: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.light.text,
@@ -135,10 +143,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   pendingBadge: {
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    backgroundColor: 'rgba(220, 20, 60, 0.1)',
   },
   pickedUpBadge: {
-    backgroundColor: 'rgba(0, 184, 148, 0.1)',
+    backgroundColor: 'rgba(40, 167, 69, 0.1)',
   },
   statusText: {
     fontSize: 12,
@@ -146,7 +154,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   pendingText: {
-    color: Colors.light.error,
+    color: Colors.light.flagRed,
   },
   pickedUpText: {
     color: Colors.light.success,

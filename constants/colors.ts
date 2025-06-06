@@ -1,17 +1,22 @@
-// Color palette for the app
+// US Flag themed color palette for the app
 export default {
   light: {
-    background: "#FFFFFF",
-    card: "#F9F9F9",
-    text: "#1A1A1A",
-    subtext: "#6E6E6E",
-    primary: "#0077CC", // Medical blue
-    secondary: "#E6F7FF", // Light blue
-    accent: "#00CC99", // Mint green
-    success: "#00B894",
-    error: "#FF6B6B",
-    warning: "#FFB347",
-    border: "#E0E0E0",
+    background: "#FFFFFF", // White
+    card: "#F8F9FA", // Light gray-white
+    text: "#1A1A1A", // Dark text
+    subtext: "#6E6E6E", // Gray text
+    primary: "#002868", // Navy Blue (US Flag Blue)
+    secondary: "#E6F3FF", // Light blue
+    accent: "#DC143C", // Crimson Red (US Flag Red)
+    success: "#28A745", // Green
+    error: "#DC3545", // Red
+    warning: "#FFC107", // Yellow/Gold
+    border: "#E0E0E0", // Light gray border
     shadow: "rgba(0, 0, 0, 0.05)",
+    // Additional US Flag colors
+    flagRed: "#DC143C",
+    flagBlue: "#002868",
+    flagWhite: "#FFFFFF",
+    gold: "#FFC107", // For special buttons
   }
 };

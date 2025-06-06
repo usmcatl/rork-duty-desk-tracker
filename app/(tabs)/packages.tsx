@@ -1,29 +1,35 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
 import { usePackageStore } from '@/store/packageStore';
 import { useMemberStore } from '@/store/memberStore';
 import EmptyState from '@/components/EmptyState';
 import PackageCard from '@/components/PackageCard';
-import { Plus, Search, Filter } from 'lucide-react-native';
+import Button from '@/components/Button';
+import { Plus, Search, Filter, MapPin, CheckSquare } from 'lucide-react-native';
 
 export default function PackagesScreen() {
   const router = useRouter();
-  const { packages } = usePackageStore();
+  const { packages, massUpdateStorageLocation } = usePackageStore();
   const { getMemberById } = useMemberStore();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+  const [showMassUpdate, setShowMassUpdate] = useState(false);
+  const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
+  const [newStorageLocation, setNewStorageLocation] = useState('');
   
   // Filter packages based on search and status
   const filteredPackages = packages.filter(pkg => {
     const member = getMemberById(pkg.memberId);
     const matchesSearch = searchQuery === '' || 
-      pkg.trackingNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       pkg.recipientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       pkg.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (member && member.name.toLowerCase().includes(searchQuery.toLowerCase()));
+      (member && member.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (member && member.aliases && member.aliases.some(alias => 
+        alias.toLowerCase().includes(searchQuery.toLowerCase())
+      ));
     
     const matchesStatus = selectedStatus === null || pkg.status === selectedStatus;
     
@@ -35,6 +41,44 @@ export default function PackagesScreen() {
   
   const handleAddPackage = () => {
     router.push('/add-package');
+  };
+  
+  const handleTogglePackageSelection = (packageId: string) => {
+    setSelectedPackages(prev => 
+      prev.includes(packageId) 
+        ? prev.filter(id => id !== packageId)
+        : [...prev, packageId]
+    );
+  };
+  
+  const handleMassUpdateStorage = () => {
+    if (selectedPackages.length === 0) {
+      Alert.alert('Error', 'Please select at least one package.');
+      return;
+    }
+    
+    if (!newStorageLocation.trim()) {
+      Alert.alert('Error', 'Please enter a new storage location.');
+      return;
+    }
+    
+    Alert.alert(
+      'Confirm Mass Update',
+      `Update storage location for ${selectedPackages.length} package(s) to "${newStorageLocation.trim()}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Update',
+          onPress: () => {
+            massUpdateStorageLocation(selectedPackages, newStorageLocation.trim());
+            setSelectedPackages([]);
+            setNewStorageLocation('');
+            setShowMassUpdate(false);
+            Alert.alert('Success', 'Storage locations updated successfully!');
+          }
+        }
+      ]
+    );
   };
   
   if (packages.length === 0) {
@@ -61,7 +105,49 @@ export default function PackagesScreen() {
             placeholderTextColor={Colors.light.subtext}
           />
         </View>
+        
+        <TouchableOpacity
+          style={styles.massUpdateButton}
+          onPress={() => setShowMassUpdate(!showMassUpdate)}
+        >
+          <MapPin size={20} color={Colors.light.primary} />
+        </TouchableOpacity>
       </View>
+      
+      {showMassUpdate && (
+        <View style={styles.massUpdateContainer}>
+          <Text style={styles.massUpdateTitle}>Mass Update Storage Location</Text>
+          <Text style={styles.massUpdateSubtitle}>
+            Select packages and enter new storage location
+          </Text>
+          
+          <TextInput
+            style={styles.massUpdateInput}
+            placeholder="New storage location"
+            value={newStorageLocation}
+            onChangeText={setNewStorageLocation}
+            placeholderTextColor={Colors.light.subtext}
+          />
+          
+          <View style={styles.massUpdateActions}>
+            <Button
+              title="Cancel"
+              onPress={() => {
+                setShowMassUpdate(false);
+                setSelectedPackages([]);
+                setNewStorageLocation('');
+              }}
+              variant="outline"
+              style={styles.massUpdateActionButton}
+            />
+            <Button
+              title={`Update ${selectedPackages.length} packages`}
+              onPress={handleMassUpdateStorage}
+              style={styles.massUpdateActionButton}
+            />
+          </View>
+        </View>
+      )}
       
       <ScrollView 
         horizontal
@@ -124,7 +210,26 @@ export default function PackagesScreen() {
           filteredPackages
             .sort((a, b) => new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime())
             .map(pkg => (
-              <PackageCard key={pkg.id} package={pkg} />
+              <View key={pkg.id} style={styles.packageContainer}>
+                {showMassUpdate && (
+                  <TouchableOpacity
+                    style={styles.selectionButton}
+                    onPress={() => handleTogglePackageSelection(pkg.id)}
+                  >
+                    <View style={[
+                      styles.checkbox,
+                      selectedPackages.includes(pkg.id) && styles.checkedBox
+                    ]}>
+                      {selectedPackages.includes(pkg.id) && (
+                        <CheckSquare size={16} color="#fff" />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                )}
+                <View style={[styles.packageCardContainer, showMassUpdate && styles.packageCardWithSelection]}>
+                  <PackageCard package={pkg} />
+                </View>
+              </View>
             ))
         ) : (
           <EmptyState
@@ -151,10 +256,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
   },
   searchContainer: {
+    flexDirection: 'row',
     padding: 16,
     paddingBottom: 8,
+    alignItems: 'center',
   },
   searchInputContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.light.card,
@@ -162,6 +270,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: Colors.light.border,
+    marginRight: 12,
   },
   searchIcon: {
     marginRight: 8,
@@ -171,6 +280,52 @@ const styles = StyleSheet.create({
     height: 44,
     fontSize: 16,
     color: Colors.light.text,
+  },
+  massUpdateButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: Colors.light.secondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  massUpdateContainer: {
+    backgroundColor: Colors.light.card,
+    margin: 16,
+    marginTop: 0,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  massUpdateTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginBottom: 4,
+  },
+  massUpdateSubtitle: {
+    fontSize: 14,
+    color: Colors.light.subtext,
+    marginBottom: 12,
+  },
+  massUpdateInput: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: Colors.light.text,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    marginBottom: 12,
+  },
+  massUpdateActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  massUpdateActionButton: {
+    flex: 1,
+    marginHorizontal: 4,
   },
   statusContainer: {
     maxHeight: 50,
@@ -206,6 +361,33 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 80,
+  },
+  packageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  selectionButton: {
+    marginRight: 12,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: Colors.light.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkedBox: {
+    backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
+  },
+  packageCardContainer: {
+    flex: 1,
+  },
+  packageCardWithSelection: {
+    marginLeft: 0,
   },
   fab: {
     position: 'absolute',
