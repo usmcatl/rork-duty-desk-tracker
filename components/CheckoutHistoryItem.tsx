@@ -82,8 +82,12 @@ export default function CheckoutHistoryItem({
           </Text>
         )}
         
-        {record.notes && (
-          <Text style={styles.notesText}>{record.notes}</Text>
+        {record.checkoutNotes && (
+          <Text style={styles.notesText}>Checkout notes: {record.checkoutNotes}</Text>
+        )}
+        
+        {record.returnNotes && (
+          <Text style={styles.notesText}>Return notes: {record.returnNotes}</Text>
         )}
       </View>
       
