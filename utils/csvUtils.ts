@@ -1,5 +1,5 @@
 import { Equipment, CheckoutRecord } from '@/types/equipment';
-import { Member } from '@/types/member';
+import { Member, MEMBER_BRANCHES, MEMBER_STATUSES, MEMBER_GROUPS, MemberBranch, MemberStatus, MemberGroup } from '@/types/member';
 
 /**
  * Converts equipment and checkout records to CSV format
@@ -104,7 +104,7 @@ export const convertMembersToCSV = (members: Member[]): string => {
       member.id,
       escapeCsvValue(member.memberId),
       escapeCsvValue(member.name),
-      escapeCsvValue(member.phone),
+      escapeCsvValue(member.phone || ''),
       escapeCsvValue(member.email || ''),
       escapeCsvValue(member.address || ''),
       escapeCsvValue(member.notes || ''),
@@ -204,6 +204,24 @@ export const parseMembersFromCSV = (csv: string): Member[] => {
     const values = parseCSVLine(line);
     if (values.length < 3) continue; // At minimum need id, memberId, and name
     
+    // Validate and parse branch
+    const branchValue = values[8]?.trim();
+    const branch: MemberBranch | undefined = branchValue && MEMBER_BRANCHES.includes(branchValue as MemberBranch) 
+      ? branchValue as MemberBranch 
+      : undefined;
+    
+    // Validate and parse status
+    const statusValue = values[9]?.trim();
+    const status: MemberStatus = statusValue && MEMBER_STATUSES.includes(statusValue as MemberStatus)
+      ? statusValue as MemberStatus
+      : 'Active';
+    
+    // Validate and parse group
+    const groupValue = values[10]?.trim();
+    const group: MemberGroup = groupValue && MEMBER_GROUPS.includes(groupValue as MemberGroup)
+      ? groupValue as MemberGroup
+      : 'Legion';
+    
     // Map CSV columns to member properties
     const member: Member = {
       id: values[0] || Date.now().toString() + Math.random().toString(36).substring(2, 9),
@@ -214,9 +232,9 @@ export const parseMembersFromCSV = (csv: string): Member[] => {
       address: values[5] || undefined,
       notes: values[6] || undefined,
       joinDate: values[7] ? new Date(values[7]) : new Date(),
-      branch: values[8] || undefined,
-      status: (values[9] as 'Active' | 'Inactive') || 'Active',
-      group: (values[10] as 'Legion' | 'SAL' | 'Auxiliary') || 'Legion'
+      branch,
+      status,
+      group
     };
     
     members.push(member);
