@@ -13,6 +13,7 @@ interface MemberState {
   addAssociation: (memberId: string, associatedMemberId: string) => void;
   removeAssociation: (memberId: string, associatedMemberId: string) => void;
   searchMembers: (query: string) => Member[];
+  importMembers: (members: Member[]) => void;
   setMembers: (members: Member[]) => void;
   clearAllData: () => void;
 }
@@ -28,6 +29,9 @@ const sampleMembers: Member[] = [
     email: 'john.smith@example.com',
     joinDate: new Date('2024-01-15T10:30:00.000Z'),
     associatedMembers: ['2'],
+    branch: 'Army',
+    status: 'Active',
+    group: 'Legion',
   },
   {
     id: '2',
@@ -38,6 +42,9 @@ const sampleMembers: Member[] = [
     email: 'maria.garcia@example.com',
     joinDate: new Date('2024-02-20T14:15:00.000Z'),
     associatedMembers: ['1'],
+    branch: 'Navy',
+    status: 'Active',
+    group: 'Auxiliary',
   },
   {
     id: '3',
@@ -47,6 +54,9 @@ const sampleMembers: Member[] = [
     phone: '+1 (555) 456-7890',
     email: 'david.johnson@example.com',
     joinDate: new Date('2024-03-10T09:45:00.000Z'),
+    branch: 'Air Force',
+    status: 'Active',
+    group: 'Legion',
   },
   {
     id: '4',
@@ -54,6 +64,8 @@ const sampleMembers: Member[] = [
     memberId: 'MED004',
     email: 'sarah.wilson@example.com',
     joinDate: new Date('2024-04-05T16:20:00.000Z'),
+    status: 'Inactive',
+    group: 'SAL',
   },
 ];
 
@@ -141,6 +153,22 @@ export const useMemberStore = create<MemberState>()(
           ) || false;
           
           return nameMatch || memberIdMatch || phoneMatch || aliasMatch;
+        });
+      },
+      
+      importMembers: (newMembers) => {
+        set((state) => {
+          // Generate unique IDs for imported members and ensure required fields
+          const membersWithIds = newMembers.map(member => ({
+            ...member,
+            id: member.id || Date.now().toString() + Math.random().toString(36).substring(2, 9),
+            status: member.status || 'Active',
+            group: member.group || 'Legion',
+          }));
+          
+          return {
+            members: [...state.members, ...membersWithIds],
+          };
         });
       },
       

@@ -91,7 +91,10 @@ export const convertMembersToCSV = (members: Member[]): string => {
     'email',
     'address',
     'notes',
-    'joinDate'
+    'joinDate',
+    'branch',
+    'status',
+    'group'
   ];
   
   let csv = headers.join(',') + '\n';
@@ -105,7 +108,10 @@ export const convertMembersToCSV = (members: Member[]): string => {
       escapeCsvValue(member.email || ''),
       escapeCsvValue(member.address || ''),
       escapeCsvValue(member.notes || ''),
-      new Date(member.joinDate).toISOString()
+      new Date(member.joinDate).toISOString(),
+      escapeCsvValue(member.branch || ''),
+      member.status,
+      member.group
     ];
     
     csv += row.join(',') + '\n';
@@ -207,7 +213,10 @@ export const parseMembersFromCSV = (csv: string): Member[] => {
       email: values[4] || undefined,
       address: values[5] || undefined,
       notes: values[6] || undefined,
-      joinDate: values[7] ? new Date(values[7]) : new Date()
+      joinDate: values[7] ? new Date(values[7]) : new Date(),
+      branch: values[8] || undefined,
+      status: (values[9] as 'Active' | 'Inactive') || 'Active',
+      group: (values[10] as 'Legion' | 'SAL' | 'Auxiliary') || 'Legion'
     };
     
     members.push(member);
@@ -220,9 +229,9 @@ export const parseMembersFromCSV = (csv: string): Member[] => {
  * Creates a template CSV for member import
  */
 export const getMemberImportTemplate = (): string => {
-  return 'memberId,name,phone,email,address,notes,joinDate\n' +
-         'M001,John Doe,555-123-4567,john@example.com,"123 Main St, Lake Chapala",Active member,2023-01-15\n' +
-         'M002,Jane Smith,555-987-6543,jane@example.com,"456 Oak Ave, Lake Chapala",Volunteer,2022-11-20';
+  return 'memberId,name,phone,email,address,notes,joinDate,branch,status,group\n' +
+         'M001,John Doe,555-123-4567,john@example.com,"123 Main St, Lake Chapala",Active member,2023-01-15,Army,Active,Legion\n' +
+         'M002,Jane Smith,555-987-6543,jane@example.com,"456 Oak Ave, Lake Chapala",Volunteer,2022-11-20,Navy,Active,Auxiliary';
 };
 
 /**

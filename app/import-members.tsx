@@ -91,7 +91,10 @@ export default function ImportMembersScreen() {
         setPreviewData(members.slice(0, 5).map(m => ({
           memberId: m.memberId,
           name: m.name,
-          phone: m.phone || 'N/A'
+          phone: m.phone || 'N/A',
+          branch: m.branch || 'N/A',
+          status: m.status,
+          group: m.group
         })));
         
         Alert.alert(
@@ -175,7 +178,9 @@ export default function ImportMembersScreen() {
             1. Download the CSV template{'\n'}
             2. Fill in your member data following the template format{'\n'}
             3. Upload your completed CSV file{'\n'}
-            4. Review the preview and click Import
+            4. Review the preview and click Import{'\n\n'}
+            Required fields: memberId, name, status, group{'\n'}
+            Optional fields: phone, email, address, notes, joinDate, branch
           </Text>
         </View>
         
@@ -210,16 +215,18 @@ export default function ImportMembersScreen() {
             <Text style={styles.previewTitle}>Preview</Text>
             
             <View style={styles.previewHeader}>
-              <Text style={[styles.previewHeaderText, styles.previewIdColumn]}>Member ID</Text>
+              <Text style={[styles.previewHeaderText, styles.previewIdColumn]}>ID</Text>
               <Text style={[styles.previewHeaderText, styles.previewNameColumn]}>Name</Text>
-              <Text style={[styles.previewHeaderText, styles.previewPhoneColumn]}>Phone</Text>
+              <Text style={[styles.previewHeaderText, styles.previewBranchColumn]}>Branch</Text>
+              <Text style={[styles.previewHeaderText, styles.previewStatusColumn]}>Status</Text>
             </View>
             
             {previewData.map((item, index) => (
               <View key={index} style={styles.previewRow}>
                 <Text style={[styles.previewText, styles.previewIdColumn]}>{item.memberId}</Text>
                 <Text style={[styles.previewText, styles.previewNameColumn]}>{item.name}</Text>
-                <Text style={[styles.previewText, styles.previewPhoneColumn]}>{item.phone}</Text>
+                <Text style={[styles.previewText, styles.previewBranchColumn]}>{item.branch}</Text>
+                <Text style={[styles.previewText, styles.previewStatusColumn]}>{item.status}</Text>
               </View>
             ))}
             
@@ -333,7 +340,10 @@ const styles = StyleSheet.create({
   previewNameColumn: {
     flex: 2,
   },
-  previewPhoneColumn: {
+  previewBranchColumn: {
+    flex: 1,
+  },
+  previewStatusColumn: {
     flex: 1,
   },
   previewNote: {

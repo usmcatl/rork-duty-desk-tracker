@@ -14,7 +14,29 @@ import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import Colors from '@/constants/colors';
 import { useMemberStore } from '@/store/memberStore';
 import Button from '@/components/Button';
-import { User, Phone, Mail, MapPin, FileText, Calendar, Tag, Users, Plus, X } from 'lucide-react-native';
+import { 
+  User, 
+  Phone, 
+  Mail, 
+  MapPin, 
+  FileText, 
+  Calendar, 
+  Tag, 
+  Users, 
+  Plus, 
+  X,
+  Shield,
+  Activity,
+  ChevronDown
+} from 'lucide-react-native';
+import { 
+  MemberBranch, 
+  MemberStatus, 
+  MemberGroup, 
+  MEMBER_BRANCHES, 
+  MEMBER_STATUSES, 
+  MEMBER_GROUPS 
+} from '@/types/member';
 
 export default function EditMemberScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -29,6 +51,9 @@ export default function EditMemberScreen() {
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
   const [joinDate, setJoinDate] = useState(new Date());
+  const [branch, setBranch] = useState<MemberBranch | undefined>(undefined);
+  const [status, setStatus] = useState<MemberStatus>('Active');
+  const [group, setGroup] = useState<MemberGroup>('Legion');
   
   // Associated members
   const [showAssociatedMemberForm, setShowAssociatedMemberForm] = useState(false);
@@ -47,6 +72,9 @@ export default function EditMemberScreen() {
       setAddress(member.address || '');
       setNotes(member.notes || '');
       setJoinDate(new Date(member.joinDate));
+      setBranch(member.branch);
+      setStatus(member.status);
+      setGroup(member.group);
     } else {
       // Member not found, go back
       Alert.alert("Error", "Member not found");
@@ -91,10 +119,56 @@ export default function EditMemberScreen() {
       address: address.trim() || undefined,
       notes: notes.trim() || undefined,
       joinDate,
+      branch,
+      status,
+      group,
     });
     
     // Navigate back
     router.back();
+  };
+  
+  const showBranchPicker = () => {
+    const options = ['None', ...MEMBER_BRANCHES];
+    Alert.alert(
+      'Select Military Branch',
+      'Choose the military branch for this member',
+      [
+        ...options.map(option => ({
+          text: option,
+          onPress: () => setBranch(option === 'None' ? undefined : option as MemberBranch)
+        })),
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
+  
+  const showStatusPicker = () => {
+    Alert.alert(
+      'Select Member Status',
+      'Choose the status for this member',
+      [
+        ...MEMBER_STATUSES.map(option => ({
+          text: option,
+          onPress: () => setStatus(option)
+        })),
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
+  
+  const showGroupPicker = () => {
+    Alert.alert(
+      'Select Member Group',
+      'Choose the group for this member',
+      [
+        ...MEMBER_GROUPS.map(option => ({
+          text: option,
+          onPress: () => setGroup(option)
+        })),
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
   };
   
   const handleAssociatedMemberSearch = (query: string) => {
@@ -222,6 +296,50 @@ export default function EditMemberScreen() {
           <Text style={styles.inputHelp}>
             Alternative names or nicknames (e.g., Johnny, J. Smith)
           </Text>
+        </View>
+        
+        <View style={styles.inputContainer}>
+          <View style={styles.inputHeader}>
+            <Shield size={20} color={Colors.light.primary} />
+            <Text style={styles.inputHeaderLabel}>Military Branch (Optional)</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.pickerInput}
+            onPress={showBranchPicker}
+          >
+            <Text style={[styles.pickerText, !branch && styles.placeholderText]}>
+              {branch || 'Select military branch'}
+            </Text>
+            <ChevronDown size={20} color={Colors.light.subtext} />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.inputContainer}>
+          <View style={styles.inputHeader}>
+            <Activity size={20} color={Colors.light.primary} />
+            <Text style={styles.inputHeaderLabel}>Status*</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.pickerInput}
+            onPress={showStatusPicker}
+          >
+            <Text style={styles.pickerText}>{status}</Text>
+            <ChevronDown size={20} color={Colors.light.subtext} />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.inputContainer}>
+          <View style={styles.inputHeader}>
+            <Users size={20} color={Colors.light.primary} />
+            <Text style={styles.inputHeaderLabel}>Group*</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.pickerInput}
+            onPress={showGroupPicker}
+          >
+            <Text style={styles.pickerText}>{group}</Text>
+            <ChevronDown size={20} color={Colors.light.subtext} />
+          </TouchableOpacity>
         </View>
         
         <View style={styles.inputContainer}>
@@ -434,6 +552,24 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     borderWidth: 1,
     borderColor: Colors.light.border,
+  },
+  pickerInput: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  pickerText: {
+    fontSize: 16,
+    color: Colors.light.text,
+  },
+  placeholderText: {
+    color: Colors.light.subtext,
   },
   inputHelp: {
     fontSize: 12,

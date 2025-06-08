@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
 import { useMemberStore } from '@/store/memberStore';
 import EmptyState from '@/components/EmptyState';
-import { Plus, Search, Filter, User, Phone, Calendar, ChevronRight, Users, Upload } from 'lucide-react-native';
+import { Plus, Search, Filter, User, Phone, Calendar, ChevronRight, Users, Upload, Shield, Activity } from 'lucide-react-native';
 
 export default function MembersScreen() {
   const router = useRouter();
@@ -26,7 +26,10 @@ export default function MembersScreen() {
       member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.memberId.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (member.phone && member.phone.includes(searchQuery)) ||
-      (member.email && member.email.toLowerCase().includes(searchQuery.toLowerCase()));
+      (member.email && member.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (member.branch && member.branch.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      member.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.group.toLowerCase().includes(searchQuery.toLowerCase());
   });
   
   const handleAddMember = () => {
@@ -43,6 +46,10 @@ export default function MembersScreen() {
   
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString();
+  };
+  
+  const getStatusColor = (status: string) => {
+    return status === 'Active' ? Colors.light.primary : Colors.light.subtext;
   };
   
   if (members.length === 0) {
@@ -110,7 +117,12 @@ export default function MembersScreen() {
                 <View style={styles.memberInfo}>
                   <View style={styles.memberHeader}>
                     <Text style={styles.memberName}>{member.name}</Text>
-                    <Text style={styles.memberId}>ID: {member.memberId}</Text>
+                    <View style={styles.memberIdRow}>
+                      <Text style={styles.memberId}>ID: {member.memberId}</Text>
+                      <Text style={[styles.statusBadge, { color: getStatusColor(member.status) }]}>
+                        {member.status}
+                      </Text>
+                    </View>
                   </View>
                   
                   <View style={styles.memberDetails}>
@@ -118,6 +130,22 @@ export default function MembersScreen() {
                       <Phone size={14} color={Colors.light.subtext} />
                       <Text style={styles.memberDetailText}>
                         {member.phone || 'No phone'}
+                      </Text>
+                    </View>
+                    
+                    {member.branch && (
+                      <View style={styles.memberDetail}>
+                        <Shield size={14} color={Colors.light.subtext} />
+                        <Text style={styles.memberDetailText}>
+                          {member.branch}
+                        </Text>
+                      </View>
+                    )}
+                    
+                    <View style={styles.memberDetail}>
+                      <Users size={14} color={Colors.light.subtext} />
+                      <Text style={styles.memberDetailText}>
+                        {member.group}
                       </Text>
                     </View>
                     
@@ -237,10 +265,23 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     marginBottom: 2,
   },
+  memberIdRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   memberId: {
     fontSize: 14,
     color: Colors.light.primary,
     fontWeight: '500',
+  },
+  statusBadge: {
+    fontSize: 12,
+    fontWeight: '600',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: Colors.light.secondary,
   },
   memberDetails: {
     flexDirection: 'row',

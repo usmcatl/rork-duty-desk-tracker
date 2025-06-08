@@ -31,7 +31,9 @@ import {
   ChevronRight,
   Package2,
   Users,
-  Tag
+  Tag,
+  Shield,
+  Activity
 } from 'lucide-react-native';
 
 const ADMIN_CODE = '1234'; // In production, this should be more secure
@@ -158,6 +160,10 @@ export default function MemberDetailScreen() {
     return display;
   };
   
+  const getStatusColor = (status: string) => {
+    return status === 'Active' ? Colors.light.primary : Colors.light.subtext;
+  };
+  
   return (
     <View style={styles.container}>
       <Stack.Screen 
@@ -195,6 +201,12 @@ export default function MemberDetailScreen() {
           <View style={styles.profileInfo}>
             <Text style={styles.memberName}>{formatMemberDisplay(member)}</Text>
             <Text style={styles.memberId}>Member ID: {member.memberId}</Text>
+            <View style={styles.statusContainer}>
+              <Text style={[styles.statusText, { color: getStatusColor(member.status) }]}>
+                {member.status}
+              </Text>
+              <Text style={styles.groupText}>{member.group}</Text>
+            </View>
           </View>
         </View>
         
@@ -246,6 +258,34 @@ export default function MemberDetailScreen() {
               </View>
             </View>
           )}
+          
+          {member.branch && (
+            <View style={styles.detailItem}>
+              <Shield size={20} color={Colors.light.primary} />
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Military Branch</Text>
+                <Text style={styles.detailValue}>{member.branch}</Text>
+              </View>
+            </View>
+          )}
+          
+          <View style={styles.detailItem}>
+            <Activity size={20} color={Colors.light.primary} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Status</Text>
+              <Text style={[styles.detailValue, { color: getStatusColor(member.status) }]}>
+                {member.status}
+              </Text>
+            </View>
+          </View>
+          
+          <View style={styles.detailItem}>
+            <Users size={20} color={Colors.light.primary} />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Group</Text>
+              <Text style={styles.detailValue}>{member.group}</Text>
+            </View>
+          </View>
           
           <View style={styles.detailItem}>
             <MapPin size={20} color={Colors.light.primary} />
@@ -446,6 +486,21 @@ const styles = StyleSheet.create({
   memberId: {
     fontSize: 16,
     color: Colors.light.primary,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: 12,
+  },
+  groupText: {
+    fontSize: 14,
+    color: Colors.light.subtext,
     fontWeight: '500',
   },
   contactActions: {
