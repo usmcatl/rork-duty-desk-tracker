@@ -1,28 +1,29 @@
-export type EquipmentStatus = 'available' | 'checked-out';
+export type EquipmentStatus = 'available' | 'checked-out' | 'maintenance' | 'retired';
 
-export type Equipment = {
+export interface Equipment {
   id: string;
   name: string;
   description: string;
-  imageUri: string;
+  imageUri?: string;
   status: EquipmentStatus;
   category: string;
   serialNumber?: string;
   notes?: string;
   addedDate: Date;
-  depositAmount: number; // Required deposit amount in dollars
-};
+  depositAmount?: number;
+}
 
-export type CheckoutRecord = {
+export interface CheckoutRecord {
   id: string;
   equipmentId: string;
-  memberId: string; // Reference to the member who borrowed the equipment
+  memberId: string;
   checkoutDate: Date;
-  expectedReturnDate: Date; // Required expected return date
+  expectedReturnDate?: Date;
   returnDate?: Date;
   checkoutNotes?: string;
   returnNotes?: string;
   dutyOfficer: string;
-  depositCollected: number; // Required deposit amount collected
-  depositReturned?: boolean; // Whether deposit was returned
-};
+  depositCollected?: number;
+  depositReturned?: boolean;
+  collectedBy?: string; // Who collected the money on return
+}

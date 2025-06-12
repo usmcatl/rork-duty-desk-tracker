@@ -49,7 +49,7 @@ export default function AddPackageScreen() {
   const [sender, setSender] = useState('');
   const [storageLocation, setStorageLocation] = useState('');
   const [notes, setNotes] = useState('');
-  const [addedBy, setAddedBy] = useState('');
+  const [receivedBy, setReceivedBy] = useState('');
   
   // Photo states
   const [packagePhotoUri, setPackagePhotoUri] = useState('');
@@ -224,8 +224,8 @@ export default function AddPackageScreen() {
       return;
     }
     
-    if (!addedBy.trim()) {
-      Alert.alert('Error', 'Please select who added this package.');
+    if (!receivedBy.trim()) {
+      Alert.alert('Error', 'Please select who received this package.');
       return;
     }
     
@@ -244,7 +244,7 @@ export default function AddPackageScreen() {
       packagePhotoUri,
       labelPhotoUri,
       storagePhotoUri,
-      addedBy: addedBy.trim(),
+      addedBy: receivedBy.trim(),
     });
     
     Alert.alert(
@@ -265,7 +265,7 @@ export default function AddPackageScreen() {
             setLabelPhotoUri('');
             setStoragePhotoUri('');
             setMemberSearchQuery('');
-            // Keep addedBy selected for convenience
+            // Keep receivedBy selected for convenience
           }
         },
         { 
@@ -523,11 +523,11 @@ export default function AddPackageScreen() {
           <Text style={styles.sectionTitle}>Additional Information</Text>
           
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Added By *</Text>
+            <Text style={styles.label}>Received By *</Text>
             <Dropdown
               options={dutyOfficers}
-              value={addedBy}
-              onSelect={setAddedBy}
+              value={receivedBy}
+              onSelect={setReceivedBy}
               placeholder="Select duty officer"
             />
           </View>

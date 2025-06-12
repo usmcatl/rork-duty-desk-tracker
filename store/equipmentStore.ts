@@ -11,7 +11,7 @@ interface EquipmentState {
   updateEquipment: (equipment: Equipment) => void;
   removeEquipment: (id: string) => void;
   checkoutEquipment: (checkoutRecord: Omit<CheckoutRecord, 'id' | 'checkoutDate'>) => void;
-  returnEquipment: (equipmentId: string, returnNotes?: string, depositReturned?: boolean) => void;
+  returnEquipment: (equipmentId: string, returnNotes?: string, depositReturned?: boolean, collectedBy?: string) => void;
   getDutyOfficers: () => string[];
   setDutyOfficers: (officers: string[]) => void;
   setEquipment: (equipment: Equipment[]) => void;
@@ -180,7 +180,7 @@ export const useEquipmentStore = create<EquipmentState>()(
         });
       },
       
-      returnEquipment: (equipmentId, returnNotes, depositReturned = true) => set((state) => {
+      returnEquipment: (equipmentId, returnNotes, depositReturned = true, collectedBy) => set((state) => {
         // Find the active checkout record for this equipment
         const activeCheckoutIndex = state.checkoutRecords.findIndex(
           (record) => record.equipmentId === equipmentId && !record.returnDate
@@ -195,6 +195,7 @@ export const useEquipmentStore = create<EquipmentState>()(
           returnDate: new Date(),
           returnNotes: returnNotes || '',
           depositReturned,
+          collectedBy,
         };
         
         // Update equipment status

@@ -14,12 +14,13 @@ import Colors from '@/constants/colors';
 import { useEquipmentStore } from '@/store/equipmentStore';
 import { useMemberStore } from '@/store/memberStore';
 import Button from '@/components/Button';
-import { FileText, CheckCircle, DollarSign, AlertCircle, User } from 'lucide-react-native';
+import Dropdown from '@/components/Dropdown';
+import { FileText, CheckCircle, DollarSign, AlertCircle, User, Shield } from 'lucide-react-native';
 
 export default function ReturnScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { equipment, checkoutRecords, returnEquipment } = useEquipmentStore();
+  const { equipment, checkoutRecords, returnEquipment, getDutyOfficers } = useEquipmentStore();
   const { getMemberById } = useMemberStore();
   
   const item = equipment.find(e => e.id === id);
@@ -27,6 +28,10 @@ export default function ReturnScreen() {
   const [returnNotes, setReturnNotes] = useState('');
   const [depositReturned, setDepositReturned] = useState(true);
   const [returnReason, setReturnReason] = useState('');
+  const [collectedBy, setCollectedBy] = useState('');
+  
+  // Get duty officers from settings
+  const dutyOfficers = getDutyOfficers();
   
   if (!item) {
     return (
@@ -108,6 +113,14 @@ export default function ReturnScreen() {
   };
   
   const processReturn = () => {
+    // If there's a deposit and it's being returned, require who collected it
+    if (depositReturned && activeCheckout.depositCollected && activeCheckout.depositCollected > 0) {
+      if (!collectedBy.trim()) {
+        Alert.alert("Error", "Please select who collected the deposit");
+        return;
+      }
+    }
+    
     // Combine notes with deposit reason if applicable
     let finalNotes = returnNotes.trim();
     if (!depositReturned && returnReason.trim()) {
@@ -116,7 +129,7 @@ export default function ReturnScreen() {
 Deposit not returned reason: ${returnReason.trim()}`;
     }
     
-    returnEquipment(id, finalNotes, depositReturned);
+    returnEquipment(id, finalNotes, depositReturned, collectedBy.trim() || undefined);
     router.back();
   };
   
@@ -231,6 +244,18 @@ Deposit not returned reason: ${returnReason.trim()}`;
                 thumbColor="#fff"
               />
             </View>
+            
+            {depositReturned && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Collected By *</Text>
+                <Dropdown
+                  options={dutyOfficers}
+                  value={collectedBy}
+                  onSelect={setCollectedBy}
+                  placeholder="Select duty officer"
+                />
+              </View>
+            )}
             
             {!depositReturned && (
               <>
@@ -444,11 +469,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   depositToggleLabel: {
     fontSize: 16,
     color: Colors.light.text,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.light.text,
+    marginBottom: 8,
   },
   depositWarning: {
     fontSize: 14,
