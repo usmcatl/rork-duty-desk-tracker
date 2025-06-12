@@ -13,6 +13,7 @@ import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import Colors from '@/constants/colors';
 import { useMemberStore } from '@/store/memberStore';
 import Button from '@/components/Button';
+import Dropdown from '@/components/Dropdown';
 import { 
   User, 
   Phone, 
@@ -25,8 +26,7 @@ import {
   Plus, 
   X,
   Shield,
-  Activity,
-  ChevronDown
+  Activity
 } from 'lucide-react-native';
 import { 
   MemberBranch, 
@@ -137,49 +137,6 @@ export default function EditMemberScreen() {
     
     // Navigate back
     router.back();
-  };
-  
-  const showBranchPicker = () => {
-    const options = ['None', ...MEMBER_BRANCHES];
-    Alert.alert(
-      'Select Military Branch',
-      'Choose the military branch for this member',
-      [
-        ...options.map(option => ({
-          text: option,
-          onPress: () => setBranch(option === 'None' ? undefined : option as MemberBranch)
-        })),
-        { text: 'Cancel', style: 'cancel' }
-      ]
-    );
-  };
-  
-  const showStatusPicker = () => {
-    Alert.alert(
-      'Select Member Status',
-      'Choose the status for this member',
-      [
-        ...MEMBER_STATUSES.map(option => ({
-          text: option,
-          onPress: () => setStatus(option)
-        })),
-        { text: 'Cancel', style: 'cancel' }
-      ]
-    );
-  };
-  
-  const showGroupPicker = () => {
-    Alert.alert(
-      'Select Member Group',
-      'Choose the group for this member',
-      [
-        ...MEMBER_GROUPS.map(option => ({
-          text: option,
-          onPress: () => setGroup(option)
-        })),
-        { text: 'Cancel', style: 'cancel' }
-      ]
-    );
   };
   
   const handleAssociatedMemberSearch = (query: string) => {
@@ -314,15 +271,14 @@ export default function EditMemberScreen() {
             <Shield size={20} color={Colors.light.primary} />
             <Text style={styles.inputHeaderLabel}>Military Branch (Optional)</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.pickerInput}
-            onPress={showBranchPicker}
-          >
-            <Text style={[styles.pickerText, !branch && styles.placeholderText]}>
-              {branch || 'Select military branch'}
-            </Text>
-            <ChevronDown size={20} color={Colors.light.subtext} />
-          </TouchableOpacity>
+          <Dropdown
+            options={MEMBER_BRANCHES}
+            value={branch}
+            onSelect={(value) => setBranch(value as MemberBranch)}
+            placeholder="Select military branch"
+            allowEmpty={true}
+            emptyLabel="None"
+          />
         </View>
         
         <View style={styles.inputContainer}>
@@ -330,13 +286,12 @@ export default function EditMemberScreen() {
             <Activity size={20} color={Colors.light.primary} />
             <Text style={styles.inputHeaderLabel}>Status*</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.pickerInput}
-            onPress={showStatusPicker}
-          >
-            <Text style={styles.pickerText}>{status}</Text>
-            <ChevronDown size={20} color={Colors.light.subtext} />
-          </TouchableOpacity>
+          <Dropdown
+            options={MEMBER_STATUSES}
+            value={status}
+            onSelect={(value) => setStatus(value as MemberStatus)}
+            placeholder="Select status"
+          />
         </View>
         
         <View style={styles.inputContainer}>
@@ -344,13 +299,12 @@ export default function EditMemberScreen() {
             <Users size={20} color={Colors.light.primary} />
             <Text style={styles.inputHeaderLabel}>Group*</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.pickerInput}
-            onPress={showGroupPicker}
-          >
-            <Text style={styles.pickerText}>{group}</Text>
-            <ChevronDown size={20} color={Colors.light.subtext} />
-          </TouchableOpacity>
+          <Dropdown
+            options={MEMBER_GROUPS}
+            value={group}
+            onSelect={(value) => setGroup(value as MemberGroup)}
+            placeholder="Select group"
+          />
         </View>
         
         <View style={styles.inputContainer}>
@@ -464,23 +418,21 @@ export default function EditMemberScreen() {
               
               {filteredMembers.length > 0 && (
                 <View style={styles.memberDropdown}>
-                  <ScrollView style={styles.memberDropdownScroll} nestedScrollEnabled={true}>
-                    {filteredMembers.slice(0, 5).map((item) => (
-                      <TouchableOpacity
-                        key={item.id}
-                        style={styles.memberDropdownItem}
-                        onPress={() => handleAddAssociation(item.id)}
-                      >
-                        <User size={16} color={Colors.light.primary} />
-                        <View style={styles.memberDropdownContent}>
-                          <Text style={styles.memberDropdownName}>
-                            {formatMemberDisplay(item)}
-                          </Text>
-                          <Text style={styles.memberDropdownId}>ID: {item.memberId}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                  {filteredMembers.slice(0, 5).map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.memberDropdownItem}
+                      onPress={() => handleAddAssociation(item.id)}
+                    >
+                      <User size={16} color={Colors.light.primary} />
+                      <View style={styles.memberDropdownContent}>
+                        <Text style={styles.memberDropdownName}>
+                          {formatMemberDisplay(item)}
+                        </Text>
+                        <Text style={styles.memberDropdownId}>ID: {item.memberId}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               )}
               
@@ -562,24 +514,6 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     borderWidth: 1,
     borderColor: Colors.light.border,
-  },
-  pickerInput: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  pickerText: {
-    fontSize: 16,
-    color: Colors.light.text,
-  },
-  placeholderText: {
-    color: Colors.light.subtext,
   },
   inputHelp: {
     fontSize: 12,
@@ -664,9 +598,6 @@ const styles = StyleSheet.create({
     maxHeight: 200,
     marginTop: 8,
     marginBottom: 8,
-  },
-  memberDropdownScroll: {
-    maxHeight: 200,
   },
   memberDropdownItem: {
     flexDirection: 'row',
