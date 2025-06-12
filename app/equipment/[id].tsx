@@ -201,6 +201,8 @@ export default function EquipmentDetailScreen() {
               <CheckoutHistoryItem 
                 key={record.id} 
                 record={record} 
+                equipment={item}
+                showMemberName={true}
               />
             ))
           ) : (
