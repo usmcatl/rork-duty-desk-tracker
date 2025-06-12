@@ -6,13 +6,16 @@ import {
   ScrollView, 
   TouchableOpacity, 
   Alert,
-  Image
+  Image,
+  Linking
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import Colors from '@/constants/colors';
 import { usePackageStore } from '@/store/packageStore';
 import { useMemberStore } from '@/store/memberStore';
+import { useEquipmentStore } from '@/store/equipmentStore';
 import Button from '@/components/Button';
+import Dropdown from '@/components/Dropdown';
 import EmptyState from '@/components/EmptyState';
 import { 
   Package2, 
@@ -20,20 +23,23 @@ import {
   Calendar, 
   MapPin, 
   FileText, 
-  Edit, 
-  Trash2,
-  CheckCircle,
-  Clock,
+  Check, 
+  Phone, 
+  Mail,
   Camera,
   Truck,
-  Users
+  Clock,
+  Shield
 } from 'lucide-react-native';
 
 export default function PackageDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { packages, removePackage, markAsPickedUp } = usePackageStore();
-  const { getMemberById, getAssociatedMembers } = useMemberStore();
+  const { packages, markAsPickedUp } = usePackageStore();
+  const { getMemberById } = useMemberStore();
+  const { getDutyOfficers } = useEquipmentStore();
+  
+  const [handOffBy, setHandOffBy] = useState('');
   
   const packageItem = packages.find(p => p.id === id);
   
@@ -49,34 +55,33 @@ export default function PackageDetailScreen() {
   }
   
   const member = getMemberById(packageItem.memberId);
-  const associatedMembers = member ? getAssociatedMembers(member.id) : [];
+  const dutyOfficers = getDutyOfficers();
   
   const handleMarkAsPickedUp = () => {
+    if (!handOffBy.trim()) {
+      Alert.alert('Error', 'Please select who handed off the package.');
+      return;
+    }
+    
     Alert.alert(
-      "Confirm Package Pickup",
-      "Are you sure this package has been picked up? This action cannot be undone.",
+      'Mark as Picked Up',
+      'Are you sure this package has been picked up by the recipient?',
       [
         {
-          text: "Cancel",
-          style: "cancel"
+          text: 'Cancel',
+          style: 'cancel'
         },
-        { 
-          text: "Confirm Pickup", 
+        {
+          text: 'Confirm',
           onPress: () => {
+            markAsPickedUp(id, handOffBy.trim());
             Alert.alert(
-              "Final Confirmation",
-              "Please confirm that this package has actually been picked up by the recipient. This cannot be undone.",
+              'Package Marked as Picked Up',
+              'The package has been successfully marked as picked up.',
               [
                 {
-                  text: "Cancel",
-                  style: "cancel"
-                },
-                {
-                  text: "Yes, Package Picked Up",
-                  onPress: () => {
-                    markAsPickedUp(packageItem.id);
-                    Alert.alert('Success', 'Package marked as picked up!');
-                  }
+                  text: 'OK',
+                  onPress: () => router.back()
                 }
               ]
             );
@@ -86,36 +91,31 @@ export default function PackageDetailScreen() {
     );
   };
   
-  const handleDeletePackage = () => {
-    Alert.alert(
-      "Delete Package",
-      "Are you sure you want to delete this package? This action cannot be undone.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        { 
-          text: "Delete", 
-          style: "destructive",
-          onPress: () => {
-            removePackage(packageItem.id);
-            router.back();
-          }
-        }
-      ]
-    );
+  const handleCall = () => {
+    if (member?.phone) {
+      Linking.openURL(`tel:${member.phone}`);
+    }
   };
   
-  const handleMemberPress = (memberId: string) => {
-    router.push(`/member/${memberId}`);
+  const handleEmail = () => {
+    if (member?.email) {
+      Linking.openURL(`mailto:${member.email}`);
+    }
   };
   
   const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString();
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
   
   const formatMemberDisplay = (memberData: any) => {
+    if (!memberData) return 'Unknown Member';
+    
     let display = memberData.name;
     if (memberData.aliases && memberData.aliases.length > 0) {
       display += ` "${memberData.aliases.join('", "')}"`;
@@ -127,17 +127,11 @@ export default function PackageDetailScreen() {
     <View style={styles.container}>
       <Stack.Screen 
         options={{ 
-          title: packageItem.recipientName,
-          headerRight: () => (
-            <View style={styles.headerButtons}>
-              <TouchableOpacity
-                onPress={handleDeletePackage}
-                style={styles.headerButton}
-              >
-                <Trash2 size={24} color={Colors.light.flagRed} />
-              </TouchableOpacity>
-            </View>
-          )
+          title: "Package Details",
+          headerStyle: {
+            backgroundColor: Colors.light.background,
+          },
+          headerTintColor: Colors.light.primary,
         }} 
       />
       
@@ -146,130 +140,113 @@ export default function PackageDetailScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.statusHeader}>
-          <View style={styles.packageIcon}>
-            <Package2 size={32} color={Colors.light.primary} />
-          </View>
-          
-          <View style={styles.statusInfo}>
-            <Text style={styles.recipientName}>{packageItem.recipientName}</Text>
-            <View style={[
-              styles.statusBadge,
-              packageItem.status === 'pending' ? styles.pendingBadge : styles.pickedUpBadge
+        <View style={styles.statusContainer}>
+          <View style={[
+            styles.statusBadge,
+            packageItem.status === 'picked-up' ? styles.statusPickedUp : styles.statusPending
+          ]}>
+            <Text style={[
+              styles.statusText,
+              packageItem.status === 'picked-up' ? styles.statusTextPickedUp : styles.statusTextPending
             ]}>
-              {packageItem.status === 'pending' ? (
-                <Clock size={16} color={Colors.light.flagRed} />
-              ) : (
-                <CheckCircle size={16} color={Colors.light.success} />
-              )}
-              <Text style={[
-                styles.statusText,
-                packageItem.status === 'pending' ? styles.pendingText : styles.pickedUpText
-              ]}>
-                {packageItem.status === 'pending' ? 'Awaiting Pickup' : 'Picked Up'}
-              </Text>
-            </View>
+              {packageItem.status === 'picked-up' ? 'PICKED UP' : 'PENDING PICKUP'}
+            </Text>
           </View>
         </View>
         
-        <View style={styles.detailsContainer}>
-          <TouchableOpacity 
-            style={styles.detailItem}
-            onPress={() => member && handleMemberPress(member.id)}
-          >
-            <User size={20} color={Colors.light.primary} />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Recipient</Text>
-              <Text style={[styles.detailValue, member && styles.linkText]}>
-                {member ? formatMemberDisplay(member) : packageItem.recipientName}
-              </Text>
-              {member && (
-                <Text style={styles.detailSubValue}>Member ID: {member.memberId}</Text>
-              )}
-            </View>
-          </TouchableOpacity>
-          
-          {/* Associated Members Section */}
-          {associatedMembers.length > 0 && (
-            <View style={styles.detailItem}>
-              <Users size={20} color={Colors.light.primary} />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Associated Members</Text>
-                {associatedMembers.map((associatedMember, index) => (
-                  <TouchableOpacity
-                    key={associatedMember.id}
-                    onPress={() => handleMemberPress(associatedMember.id)}
-                  >
-                    <Text style={[styles.detailValue, styles.linkText, index > 0 && styles.associatedMemberSpacing]}>
-                      {formatMemberDisplay(associatedMember)}
-                    </Text>
-                    <Text style={styles.detailSubValue}>ID: {associatedMember.memberId}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
-          
-          <View style={styles.detailItem}>
-            <FileText size={20} color={Colors.light.primary} />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Description</Text>
-              <Text style={styles.detailValue}>{packageItem.description}</Text>
-            </View>
+        <View style={styles.packageInfo}>
+          <View style={styles.packageHeader}>
+            <Package2 size={24} color={Colors.light.primary} />
+            <Text style={styles.packageTitle}>Package Information</Text>
           </View>
           
-          <View style={styles.detailItem}>
-            <Truck size={20} color={Colors.light.primary} />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Sender</Text>
-              <Text style={styles.detailValue}>{packageItem.sender}</Text>
-            </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Description:</Text>
+            <Text style={styles.infoValue}>{packageItem.description}</Text>
           </View>
           
-          <View style={styles.detailItem}>
-            <MapPin size={20} color={Colors.light.primary} />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Storage Location</Text>
-              <Text style={styles.detailValue}>{packageItem.storageLocation}</Text>
-            </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Sender:</Text>
+            <Text style={styles.infoValue}>{packageItem.sender}</Text>
           </View>
           
-          <View style={styles.detailItem}>
-            <Calendar size={20} color={Colors.light.primary} />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Arrival Date</Text>
-              <Text style={styles.detailValue}>{formatDate(packageItem.arrivalDate)}</Text>
-            </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Storage Location:</Text>
+            <Text style={styles.infoValue}>{packageItem.storageLocation}</Text>
+          </View>
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Arrival Date:</Text>
+            <Text style={styles.infoValue}>{formatDate(packageItem.arrivalDate)}</Text>
           </View>
           
           {packageItem.pickupDate && (
-            <View style={styles.detailItem}>
-              <CheckCircle size={20} color={Colors.light.success} />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Pickup Date</Text>
-                <Text style={styles.detailValue}>{formatDate(packageItem.pickupDate)}</Text>
-              </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Pickup Date:</Text>
+              <Text style={styles.infoValue}>{formatDate(packageItem.pickupDate)}</Text>
             </View>
           )}
           
-          <View style={styles.detailItem}>
-            <User size={20} color={Colors.light.primary} />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Added By</Text>
-              <Text style={styles.detailValue}>{packageItem.addedBy}</Text>
-            </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Received By:</Text>
+            <Text style={styles.infoValue}>{packageItem.addedBy}</Text>
           </View>
+          
+          {packageItem.handOffBy && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Handed Off By:</Text>
+              <Text style={styles.infoValue}>{packageItem.handOffBy}</Text>
+            </View>
+          )}
         </View>
         
-        {packageItem.notes && (
-          <View style={styles.notesContainer}>
-            <View style={styles.notesHeader}>
-              <FileText size={20} color={Colors.light.primary} />
-              <Text style={styles.notesTitle}>Notes</Text>
-            </View>
-            <Text style={styles.notesText}>{packageItem.notes}</Text>
+        <View style={styles.recipientInfo}>
+          <View style={styles.recipientHeader}>
+            <User size={24} color={Colors.light.primary} />
+            <Text style={styles.recipientTitle}>Recipient Information</Text>
           </View>
-        )}
+          
+          <View style={styles.recipientDetails}>
+            <Text style={styles.recipientName}>
+              {formatMemberDisplay(member)}
+            </Text>
+            {member && (
+              <>
+                <Text style={styles.memberId}>ID: {member.memberId}</Text>
+                {member.phone && (
+                  <Text style={styles.memberContact}>Phone: {member.phone}</Text>
+                )}
+                {member.email && (
+                  <Text style={styles.memberContact}>Email: {member.email}</Text>
+                )}
+              </>
+            )}
+          </View>
+          
+          {member && (member.phone || member.email) && (
+            <View style={styles.contactActions}>
+              {member.phone && (
+                <TouchableOpacity 
+                  style={styles.contactButton}
+                  onPress={handleCall}
+                >
+                  <Phone size={16} color="#fff" />
+                  <Text style={styles.contactButtonText}>Call</Text>
+                </TouchableOpacity>
+              )}
+              
+              {member.email && (
+                <TouchableOpacity 
+                  style={styles.contactButton}
+                  onPress={handleEmail}
+                >
+                  <Mail size={16} color="#fff" />
+                  <Text style={styles.contactButtonText}>Email</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
         
         <View style={styles.photosContainer}>
           <Text style={styles.photosTitle}>Package Photos</Text>
@@ -291,18 +268,40 @@ export default function PackageDetailScreen() {
             </View>
           </View>
         </View>
+        
+        {packageItem.notes && (
+          <View style={styles.notesContainer}>
+            <View style={styles.notesHeader}>
+              <FileText size={20} color={Colors.light.primary} />
+              <Text style={styles.notesTitle}>Notes</Text>
+            </View>
+            <Text style={styles.notesText}>{packageItem.notes}</Text>
+          </View>
+        )}
+        
+        {packageItem.status === 'pending' && (
+          <View style={styles.pickupSection}>
+            <Text style={styles.pickupTitle}>Mark as Picked Up</Text>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Hand Off By *</Text>
+              <Dropdown
+                options={dutyOfficers}
+                value={handOffBy}
+                onSelect={setHandOffBy}
+                placeholder="Select duty officer"
+              />
+            </View>
+            
+            <Button
+              title="Mark as Picked Up"
+              onPress={handleMarkAsPickedUp}
+              style={styles.pickupButton}
+              icon={<Check size={20} color="#fff" />}
+            />
+          </View>
+        )}
       </ScrollView>
-      
-      {packageItem.status === 'pending' && (
-        <View style={styles.footer}>
-          <Button
-            title="Mark as Picked Up"
-            onPress={handleMarkAsPickedUp}
-            style={styles.pickupButton}
-            icon={<CheckCircle size={20} color="#fff" />}
-          />
-        </View>
-      )}
     </View>
   );
 }
@@ -312,135 +311,151 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.light.background,
   },
-  headerButtons: {
-    flexDirection: 'row',
-  },
-  headerButton: {
-    padding: 8,
-    marginLeft: 8,
-  },
   scrollView: {
     flex: 1,
   },
   content: {
-    paddingBottom: 100,
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
     padding: 16,
-    paddingBottom: 24,
+    paddingBottom: 40,
   },
-  packageIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.light.secondary,
-    justifyContent: 'center',
+  statusContainer: {
     alignItems: 'center',
-    marginRight: 16,
-  },
-  statusInfo: {
-    flex: 1,
-  },
-  recipientName: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.light.text,
-    marginBottom: 8,
+    marginBottom: 24,
   },
   statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    alignSelf: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
-  pendingBadge: {
-    backgroundColor: 'rgba(220, 20, 60, 0.1)',
+  statusPending: {
+    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+    borderWidth: 1,
+    borderColor: '#FFC107',
   },
-  pickedUpBadge: {
+  statusPickedUp: {
     backgroundColor: 'rgba(40, 167, 69, 0.1)',
+    borderWidth: 1,
+    borderColor: '#28A745',
   },
   statusText: {
     fontSize: 14,
-    fontWeight: '500',
-    marginLeft: 6,
+    fontWeight: '600',
   },
-  pendingText: {
-    color: Colors.light.flagRed,
+  statusTextPending: {
+    color: '#FFC107',
   },
-  pickedUpText: {
-    color: Colors.light.success,
+  statusTextPickedUp: {
+    color: '#28A745',
   },
-  detailsContainer: {
+  packageInfo: {
     backgroundColor: Colors.light.card,
     borderRadius: 12,
     padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 24,
+    marginBottom: 16,
     shadowColor: Colors.light.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
     shadowRadius: 4,
     elevation: 2,
   },
-  detailItem: {
+  packageHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
   },
-  detailContent: {
-    marginLeft: 12,
+  packageTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginLeft: 8,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  infoLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.light.subtext,
+    width: 120,
+  },
+  infoValue: {
+    fontSize: 14,
+    color: Colors.light.text,
     flex: 1,
   },
-  detailLabel: {
+  recipientInfo: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  recipientHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  recipientTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginLeft: 8,
+  },
+  recipientDetails: {
+    backgroundColor: Colors.light.background,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  recipientName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginBottom: 4,
+  },
+  memberId: {
+    fontSize: 14,
+    color: Colors.light.primary,
+    marginBottom: 4,
+  },
+  memberContact: {
     fontSize: 14,
     color: Colors.light.subtext,
     marginBottom: 2,
   },
-  detailValue: {
-    fontSize: 16,
-    color: Colors.light.text,
+  contactActions: {
+    flexDirection: 'row',
   },
-  linkText: {
-    color: Colors.light.primary,
-    textDecorationLine: 'underline',
-  },
-  detailSubValue: {
-    fontSize: 14,
-    color: Colors.light.subtext,
-    marginTop: 2,
-  },
-  associatedMemberSpacing: {
-    marginTop: 8,
-  },
-  notesContainer: {
-    backgroundColor: Colors.light.secondary,
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 24,
-  },
-  notesHeader: {
+  contactButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'center',
+    backgroundColor: Colors.light.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginRight: 12,
   },
-  notesTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.light.primary,
-    marginLeft: 8,
-  },
-  notesText: {
-    fontSize: 15,
-    color: Colors.light.text,
-    lineHeight: 22,
+  contactButtonText: {
+    color: '#fff',
+    fontWeight: '500',
+    marginLeft: 6,
   },
   photosContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
+    backgroundColor: Colors.light.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   photosTitle: {
     fontSize: 18,
@@ -467,21 +482,55 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 1,
     borderRadius: 8,
-    backgroundColor: Colors.light.card,
   },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: Colors.light.background,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.light.border,
+  notesContainer: {
+    backgroundColor: Colors.light.secondary,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  notesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  notesTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.light.primary,
+    marginLeft: 8,
+  },
+  notesText: {
+    fontSize: 15,
+    color: Colors.light.text,
+    lineHeight: 22,
+  },
+  pickupSection: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  pickupTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginBottom: 16,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.light.text,
+    marginBottom: 8,
   },
   pickupButton: {
-    width: '100%',
-    backgroundColor: Colors.light.success,
+    marginTop: 8,
   },
 });

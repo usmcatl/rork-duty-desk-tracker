@@ -16,4 +16,5 @@ export type Package = {
   labelPhotoUri: string;
   storagePhotoUri: string;
   addedBy: string; // Duty officer who added the package
+  handOffBy?: string; // Duty officer who handed off the package during pickup
 };

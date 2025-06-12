@@ -133,7 +133,7 @@ Deposit not returned reason: ${returnReason.trim()}`;
     router.back();
   };
   
-  // Check if the equipment is overdue
+  // Check if the equipment is overdue - fix TypeScript error
   const isOverdue = activeCheckout.expectedReturnDate && 
     new Date() > new Date(activeCheckout.expectedReturnDate);
   

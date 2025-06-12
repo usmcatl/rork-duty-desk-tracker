@@ -8,7 +8,7 @@ interface PackageState {
   addPackage: (packageData: Omit<Package, 'id' | 'arrivalDate' | 'status'>) => string;
   updatePackage: (packageData: Package) => void;
   removePackage: (id: string) => void;
-  markAsPickedUp: (id: string, pickupNotes?: string) => void;
+  markAsPickedUp: (id: string, handOffBy: string, pickupNotes?: string) => void;
   getPackagesByMember: (memberId: string) => Package[];
   massUpdateStorageLocation: (packageIds: string[], newLocation: string) => void;
   setPackages: (packages: Package[]) => void;
@@ -46,6 +46,7 @@ const samplePackages: Package[] = [
     labelPhotoUri: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=500',
     storagePhotoUri: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=500',
     addedBy: 'John Smith',
+    handOffBy: 'Emily Davis',
   },
 ];
 
@@ -80,13 +81,14 @@ export const usePackageStore = create<PackageState>()(
         packages: state.packages.filter((pkg) => pkg.id !== id),
       })),
       
-      markAsPickedUp: (id, pickupNotes) => set((state) => ({
+      markAsPickedUp: (id, handOffBy, pickupNotes) => set((state) => ({
         packages: state.packages.map((pkg) => {
           if (pkg.id === id) {
             return {
               ...pkg,
               status: 'picked-up' as PackageStatus,
               pickupDate: new Date(),
+              handOffBy,
               notes: pickupNotes ? `${pkg.notes || ''}
 Pickup: ${pickupNotes}`.trim() : pkg.notes,
             };
