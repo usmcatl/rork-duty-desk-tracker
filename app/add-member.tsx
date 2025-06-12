@@ -12,6 +12,7 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
 import { useMemberStore } from '@/store/memberStore';
+import { useEquipmentStore } from '@/store/equipmentStore';
 import Button from '@/components/Button';
 import Dropdown from '@/components/Dropdown';
 import { 
@@ -24,20 +25,27 @@ import {
   Tag, 
   Shield, 
   Activity, 
-  Users
+  Users,
+  UserPlus,
+  Heart,
+  Check,
+  Square
 } from 'lucide-react-native';
 import { 
   MemberBranch, 
   MemberStatus, 
   MemberGroup, 
+  InvolvementInterest,
   MEMBER_BRANCHES, 
   MEMBER_STATUSES, 
-  MEMBER_GROUPS 
+  MEMBER_GROUPS,
+  INVOLVEMENT_INTERESTS
 } from '@/types/member';
 
 export default function AddMemberScreen() {
   const router = useRouter();
   const { addMember, members } = useMemberStore();
+  const { getDutyOfficers } = useEquipmentStore();
   
   const [memberId, setMemberId] = useState('');
   const [name, setName] = useState('');
@@ -47,9 +55,15 @@ export default function AddMemberScreen() {
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
   const [joinDate, setJoinDate] = useState(new Date());
+  const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>(undefined);
   const [branch, setBranch] = useState<MemberBranch | undefined>(undefined);
   const [status, setStatus] = useState<MemberStatus>('Active');
   const [group, setGroup] = useState<MemberGroup>('Legion');
+  const [addedBy, setAddedBy] = useState('');
+  const [involvementInterests, setInvolvementInterests] = useState<InvolvementInterest[]>([]);
+  
+  // Get duty officers from settings
+  const dutyOfficers = getDutyOfficers();
   
   // Generate a suggested member ID
   const generateMemberId = () => {
@@ -70,6 +84,16 @@ export default function AddMemberScreen() {
   React.useEffect(() => {
     setMemberId(generateMemberId());
   }, []);
+  
+  const handleInvolvementToggle = (interest: InvolvementInterest) => {
+    setInvolvementInterests(prev => {
+      if (prev.includes(interest)) {
+        return prev.filter(i => i !== interest);
+      } else {
+        return [...prev, interest];
+      }
+    });
+  };
   
   const handleAddMember = () => {
     // Validate inputs
@@ -117,9 +141,12 @@ export default function AddMemberScreen() {
       address: address.trim() || undefined,
       notes: notes.trim() || undefined,
       joinDate,
+      dateOfBirth,
       branch,
       status,
       group,
+      addedBy: addedBy.trim() || undefined,
+      involvementInterests: involvementInterests.length > 0 ? involvementInterests : undefined,
     });
     
     // Navigate back
@@ -197,6 +224,27 @@ export default function AddMemberScreen() {
           <Text style={styles.inputHelp}>
             Alternative names or nicknames (e.g., Johnny, J. Smith)
           </Text>
+        </View>
+        
+        <View style={styles.inputContainer}>
+          <View style={styles.inputHeader}>
+            <Calendar size={20} color={Colors.light.primary} />
+            <Text style={styles.inputHeaderLabel}>Date of Birth (Optional)</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.dateInput}
+            onPress={() => {
+              // In a real implementation, this would open a date picker
+              Alert.alert(
+                "Select Date",
+                "In a production app, this would open a calendar date picker. For this demo, we're using the current date."
+              );
+            }}
+          >
+            <Text style={styles.dateText}>
+              {dateOfBirth ? formatDate(dateOfBirth) : 'Select date of birth'}
+            </Text>
+          </TouchableOpacity>
         </View>
         
         <View style={styles.inputContainer}>
@@ -308,6 +356,56 @@ export default function AddMemberScreen() {
         
         <View style={styles.inputContainer}>
           <View style={styles.inputHeader}>
+            <UserPlus size={20} color={Colors.light.primary} />
+            <Text style={styles.inputHeaderLabel}>Added By (Optional)</Text>
+          </View>
+          <Dropdown
+            options={dutyOfficers}
+            value={addedBy}
+            onSelect={setAddedBy}
+            placeholder="Select duty officer"
+            allowEmpty={true}
+            emptyLabel="None"
+          />
+        </View>
+        
+        <View style={styles.inputContainer}>
+          <View style={styles.inputHeader}>
+            <Heart size={20} color={Colors.light.primary} />
+            <Text style={styles.inputHeaderLabel}>I would like to get involved with: (Optional)</Text>
+          </View>
+          
+          <View style={styles.checklistContainer}>
+            {INVOLVEMENT_INTERESTS.map((interest) => (
+              <TouchableOpacity
+                key={interest}
+                style={styles.checklistItem}
+                onPress={() => handleInvolvementToggle(interest)}
+              >
+                <View style={styles.checklistLeft}>
+                  {involvementInterests.includes(interest) ? (
+                    <Check size={20} color={Colors.light.primary} />
+                  ) : (
+                    <Square size={20} color={Colors.light.subtext} />
+                  )}
+                  <Text style={[
+                    styles.checklistText,
+                    involvementInterests.includes(interest) && styles.checklistTextSelected
+                  ]}>
+                    {interest}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+          
+          <Text style={styles.inputHelp}>
+            Select areas where this member would like to contribute
+          </Text>
+        </View>
+        
+        <View style={styles.inputContainer}>
+          <View style={styles.inputHeader}>
             <FileText size={20} color={Colors.light.primary} />
             <Text style={styles.inputHeaderLabel}>Notes (Optional)</Text>
           </View>
@@ -403,6 +501,29 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 16,
     color: Colors.light.text,
+  },
+  checklistContainer: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  checklistItem: {
+    marginBottom: 12,
+  },
+  checklistLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checklistText: {
+    fontSize: 16,
+    color: Colors.light.text,
+    marginLeft: 12,
+  },
+  checklistTextSelected: {
+    color: Colors.light.primary,
+    fontWeight: '500',
   },
   addButton: {
     marginTop: 12,

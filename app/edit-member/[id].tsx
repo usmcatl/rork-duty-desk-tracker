@@ -12,6 +12,7 @@ import {
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import Colors from '@/constants/colors';
 import { useMemberStore } from '@/store/memberStore';
+import { useEquipmentStore } from '@/store/equipmentStore';
 import Button from '@/components/Button';
 import Dropdown from '@/components/Dropdown';
 import { 
@@ -26,21 +27,28 @@ import {
   Plus, 
   X,
   Shield,
-  Activity
+  Activity,
+  UserPlus,
+  Heart,
+  Check,
+  Square
 } from 'lucide-react-native';
 import { 
   MemberBranch, 
   MemberStatus, 
   MemberGroup, 
+  InvolvementInterest,
   MEMBER_BRANCHES, 
   MEMBER_STATUSES, 
-  MEMBER_GROUPS 
+  MEMBER_GROUPS,
+  INVOLVEMENT_INTERESTS
 } from '@/types/member';
 
 export default function EditMemberScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { members, updateMember, getMemberById, addAssociation, removeAssociation, getAssociatedMembers } = useMemberStore();
+  const { getDutyOfficers } = useEquipmentStore();
   
   const [memberId, setMemberId] = useState('');
   const [name, setName] = useState('');
@@ -50,14 +58,20 @@ export default function EditMemberScreen() {
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
   const [joinDate, setJoinDate] = useState(new Date());
+  const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>(undefined);
   const [branch, setBranch] = useState<MemberBranch | undefined>(undefined);
   const [status, setStatus] = useState<MemberStatus>('Active');
   const [group, setGroup] = useState<MemberGroup>('Legion');
+  const [addedBy, setAddedBy] = useState('');
+  const [involvementInterests, setInvolvementInterests] = useState<InvolvementInterest[]>([]);
   
   // Associated members
   const [showAssociatedMemberForm, setShowAssociatedMemberForm] = useState(false);
   const [associatedMemberSearch, setAssociatedMemberSearch] = useState('');
   const [filteredMembers, setFilteredMembers] = useState<any[]>([]);
+  
+  // Get duty officers from settings
+  const dutyOfficers = getDutyOfficers();
   
   // Load member data when component mounts
   useEffect(() => {
@@ -71,9 +85,12 @@ export default function EditMemberScreen() {
       setAddress(member.address || '');
       setNotes(member.notes || '');
       setJoinDate(new Date(member.joinDate));
+      setDateOfBirth(member.dateOfBirth ? new Date(member.dateOfBirth) : undefined);
       setBranch(member.branch);
       setStatus(member.status);
       setGroup(member.group);
+      setAddedBy(member.addedBy || '');
+      setInvolvementInterests(member.involvementInterests || []);
     } else {
       // Member not found, go back
       Alert.alert("Error", "Member not found");
@@ -82,6 +99,16 @@ export default function EditMemberScreen() {
   }, [id]);
   
   const associatedMembers = getAssociatedMembers(id);
+  
+  const handleInvolvementToggle = (interest: InvolvementInterest) => {
+    setInvolvementInterests(prev => {
+      if (prev.includes(interest)) {
+        return prev.filter(i => i !== interest);
+      } else {
+        return [...prev, interest];
+      }
+    });
+  };
   
   const handleUpdateMember = () => {
     // Validate inputs
@@ -130,9 +157,12 @@ export default function EditMemberScreen() {
       address: address.trim() || undefined,
       notes: notes.trim() || undefined,
       joinDate,
+      dateOfBirth,
       branch,
       status,
       group,
+      addedBy: addedBy.trim() || undefined,
+      involvementInterests: involvementInterests.length > 0 ? involvementInterests : undefined,
     });
     
     // Navigate back
@@ -268,6 +298,27 @@ export default function EditMemberScreen() {
         
         <View style={styles.inputContainer}>
           <View style={styles.inputHeader}>
+            <Calendar size={20} color={Colors.light.primary} />
+            <Text style={styles.inputHeaderLabel}>Date of Birth (Optional)</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.dateInput}
+            onPress={() => {
+              // In a real implementation, this would open a date picker
+              Alert.alert(
+                "Select Date",
+                "In a production app, this would open a calendar date picker."
+              );
+            }}
+          >
+            <Text style={styles.dateText}>
+              {dateOfBirth ? formatDate(dateOfBirth) : 'Select date of birth'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.inputContainer}>
+          <View style={styles.inputHeader}>
             <Shield size={20} color={Colors.light.primary} />
             <Text style={styles.inputHeaderLabel}>Military Branch (Optional)</Text>
           </View>
@@ -371,6 +422,56 @@ export default function EditMemberScreen() {
           >
             <Text style={styles.dateText}>{formatDate(joinDate)}</Text>
           </TouchableOpacity>
+        </View>
+        
+        <View style={styles.inputContainer}>
+          <View style={styles.inputHeader}>
+            <UserPlus size={20} color={Colors.light.primary} />
+            <Text style={styles.inputHeaderLabel}>Added By (Optional)</Text>
+          </View>
+          <Dropdown
+            options={dutyOfficers}
+            value={addedBy}
+            onSelect={setAddedBy}
+            placeholder="Select duty officer"
+            allowEmpty={true}
+            emptyLabel="None"
+          />
+        </View>
+        
+        <View style={styles.inputContainer}>
+          <View style={styles.inputHeader}>
+            <Heart size={20} color={Colors.light.primary} />
+            <Text style={styles.inputHeaderLabel}>I would like to get involved with: (Optional)</Text>
+          </View>
+          
+          <View style={styles.checklistContainer}>
+            {INVOLVEMENT_INTERESTS.map((interest) => (
+              <TouchableOpacity
+                key={interest}
+                style={styles.checklistItem}
+                onPress={() => handleInvolvementToggle(interest)}
+              >
+                <View style={styles.checklistLeft}>
+                  {involvementInterests.includes(interest) ? (
+                    <Check size={20} color={Colors.light.primary} />
+                  ) : (
+                    <Square size={20} color={Colors.light.subtext} />
+                  )}
+                  <Text style={[
+                    styles.checklistText,
+                    involvementInterests.includes(interest) && styles.checklistTextSelected
+                  ]}>
+                    {interest}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+          
+          <Text style={styles.inputHelp}>
+            Select areas where this member would like to contribute
+          </Text>
         </View>
         
         {/* Associated Members Section */}
@@ -551,6 +652,29 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 16,
     color: Colors.light.text,
+  },
+  checklistContainer: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  checklistItem: {
+    marginBottom: 12,
+  },
+  checklistLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checklistText: {
+    fontSize: 16,
+    color: Colors.light.text,
+    marginLeft: 12,
+  },
+  checklistTextSelected: {
+    color: Colors.light.primary,
+    fontWeight: '500',
   },
   associatedMembersList: {
     marginBottom: 12,

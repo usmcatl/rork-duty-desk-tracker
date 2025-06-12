@@ -33,7 +33,10 @@ import {
   Users,
   Tag,
   Shield,
-  Activity
+  Activity,
+  UserPlus,
+  Heart,
+  Cake
 } from 'lucide-react-native';
 
 const ADMIN_CODE = '1234'; // In production, this should be more secure
@@ -164,6 +167,19 @@ export default function MemberDetailScreen() {
     return status === 'Active' ? Colors.light.primary : Colors.light.subtext;
   };
   
+  const calculateAge = (dateOfBirth: Date) => {
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age;
+  };
+  
   return (
     <View style={styles.container}>
       <Stack.Screen 
@@ -249,6 +265,18 @@ export default function MemberDetailScreen() {
             </View>
           </View>
           
+          {member.dateOfBirth && (
+            <View style={styles.detailItem}>
+              <Cake size={20} color={Colors.light.primary} />
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Date of Birth</Text>
+                <Text style={styles.detailValue}>
+                  {formatDate(member.dateOfBirth)} (Age: {calculateAge(member.dateOfBirth)})
+                </Text>
+              </View>
+            </View>
+          )}
+          
           {member.aliases && member.aliases.length > 0 && (
             <View style={styles.detailItem}>
               <Tag size={20} color={Colors.light.primary} />
@@ -302,7 +330,33 @@ export default function MemberDetailScreen() {
               <Text style={styles.detailValue}>{formatDate(member.joinDate)}</Text>
             </View>
           </View>
+          
+          {member.addedBy && (
+            <View style={styles.detailItem}>
+              <UserPlus size={20} color={Colors.light.primary} />
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Added By</Text>
+                <Text style={styles.detailValue}>{member.addedBy}</Text>
+              </View>
+            </View>
+          )}
         </View>
+        
+        {/* Involvement Interests Section */}
+        {member.involvementInterests && member.involvementInterests.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Areas of Interest</Text>
+            
+            <View style={styles.interestsContainer}>
+              {member.involvementInterests.map((interest, index) => (
+                <View key={index} style={styles.interestItem}>
+                  <Heart size={16} color={Colors.light.primary} />
+                  <Text style={styles.interestText}>{interest}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
         
         {/* Associated Members Section */}
         {associatedMembers.length > 0 && (
@@ -555,6 +609,26 @@ const styles = StyleSheet.create({
   linkText: {
     color: Colors.light.primary,
     textDecorationLine: 'underline',
+  },
+  interestsContainer: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  interestItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  interestText: {
+    fontSize: 16,
+    color: Colors.light.text,
+    marginLeft: 12,
   },
   notesContainer: {
     backgroundColor: Colors.light.secondary,
