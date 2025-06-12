@@ -83,6 +83,18 @@ export default function AddMemberScreen() {
       return;
     }
     
+    if (!email.trim()) {
+      Alert.alert('Error', 'Email is required');
+      return;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+    
     // Check if member ID already exists
     const existingMember = members.find(m => m.memberId === memberId.trim());
     if (existingMember) {
@@ -101,7 +113,7 @@ export default function AddMemberScreen() {
       name: name.trim(),
       ...(aliasArray && aliasArray.length > 0 && { aliases: aliasArray }),
       phone: phone.trim(),
-      email: email.trim() || undefined,
+      email: email.trim(),
       address: address.trim() || undefined,
       notes: notes.trim() || undefined,
       joinDate,
@@ -292,7 +304,7 @@ export default function AddMemberScreen() {
         <View style={styles.inputContainer}>
           <View style={styles.inputHeader}>
             <Mail size={20} color={Colors.light.primary} />
-            <Text style={styles.inputHeaderLabel}>Email (Optional)</Text>
+            <Text style={styles.inputHeaderLabel}>Email*</Text>
           </View>
           <TextInput
             style={styles.input}

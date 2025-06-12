@@ -120,17 +120,12 @@ export default function SettingsScreen() {
   
   const authenticateUser = async (): Promise<boolean> => {
     if (Platform.OS === 'web') {
-      // For web, use a simple confirmation dialog
-      return new Promise((resolve) => {
-        Alert.alert(
-          "Authentication Required",
-          "This action requires authentication. Continue?",
-          [
-            { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-            { text: "Continue", onPress: () => resolve(true) }
-          ]
-        );
-      });
+      // For web, authentication is not available, so cancel the action
+      Alert.alert(
+        "Authentication Required",
+        "Device authentication is required for this action. This feature is not available on web."
+      );
+      return false;
     }
     
     try {
@@ -138,17 +133,12 @@ export default function SettingsScreen() {
       const isEnrolled = await LocalAuthentication.isEnrolledAsync();
       
       if (!hasHardware || !isEnrolled) {
-        // Fallback to simple confirmation if no biometrics available
-        return new Promise((resolve) => {
-          Alert.alert(
-            "Authentication Required",
-            "Biometric authentication is not available. Continue with this action?",
-            [
-              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-              { text: "Continue", onPress: () => resolve(true) }
-            ]
-          );
-        });
+        // Authentication not available, cancel the action
+        Alert.alert(
+          "Authentication Required",
+          "Device authentication is required for this action. Please set up biometric authentication or passcode in your device settings."
+        );
+        return false;
       }
       
       const result = await LocalAuthentication.authenticateAsync({
@@ -160,6 +150,10 @@ export default function SettingsScreen() {
       return result.success;
     } catch (error) {
       console.error('Authentication error:', error);
+      Alert.alert(
+        "Authentication Error",
+        "An error occurred during authentication. Please try again."
+      );
       return false;
     }
   };
@@ -200,15 +194,14 @@ export default function SettingsScreen() {
   };
   
   const handleExportData = async () => {
-    if (Platform.OS === 'web') {
-      Alert.alert("Not Available", "Export functionality is not available on web");
-      return;
-    }
-    
     // Require authentication for export
     const authenticated = await authenticateUser();
     if (!authenticated) {
-      Alert.alert("Authentication Failed", "Authentication is required to export data");
+      return; // Cancel the action if authentication fails
+    }
+    
+    if (Platform.OS === 'web') {
+      Alert.alert("Not Available", "Export functionality is not available on web");
       return;
     }
     
@@ -546,8 +539,7 @@ export default function SettingsScreen() {
     // Require authentication for clearing data
     const authenticated = await authenticateUser();
     if (!authenticated) {
-      Alert.alert("Authentication Failed", "Authentication is required to clear all data");
-      return;
+      return; // Cancel the action if authentication fails
     }
     
     Alert.alert(

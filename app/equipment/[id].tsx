@@ -23,7 +23,8 @@ import {
   CheckCircle, 
   AlertCircle,
   Trash2,
-  DollarSign
+  DollarSign,
+  Edit
 } from 'lucide-react-native';
 
 export default function EquipmentDetailScreen() {
@@ -55,6 +56,10 @@ export default function EquipmentDetailScreen() {
   
   const handleReturn = () => {
     router.push(`/return/${id}`);
+  };
+  
+  const handleEdit = () => {
+    router.push(`/edit-equipment/${id}`);
   };
   
   const handleDelete = () => {
@@ -89,12 +94,20 @@ export default function EquipmentDetailScreen() {
         options={{ 
           title: item.name,
           headerRight: () => (
-            <TouchableOpacity
-              onPress={handleDelete}
-              style={styles.headerButton}
-            >
-              <Trash2 size={24} color={Colors.light.error} />
-            </TouchableOpacity>
+            <View style={styles.headerButtons}>
+              <TouchableOpacity
+                onPress={handleEdit}
+                style={styles.headerButton}
+              >
+                <Edit size={24} color={Colors.light.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleDelete}
+                style={styles.headerButton}
+              >
+                <Trash2 size={24} color={Colors.light.error} />
+              </TouchableOpacity>
+            </View>
           )
         }} 
       />
@@ -222,8 +235,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.light.background,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   headerButton: {
     padding: 8,
+    marginLeft: 8,
   },
   scrollView: {
     flex: 1,

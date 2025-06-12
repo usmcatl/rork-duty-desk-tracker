@@ -7,8 +7,7 @@ import {
   TextInput, 
   TouchableOpacity, 
   Alert,
-  Platform,
-  FlatList
+  Platform
 } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import Colors from '@/constants/colors';
@@ -96,6 +95,18 @@ export default function EditMemberScreen() {
       return;
     }
     
+    if (!email.trim()) {
+      Alert.alert('Error', 'Email is required');
+      return;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+    
     // Check if member ID already exists (but ignore the current member)
     const existingMember = members.find(m => m.memberId === memberId.trim() && m.id !== id);
     if (existingMember) {
@@ -115,7 +126,7 @@ export default function EditMemberScreen() {
       name: name.trim(),
       ...(aliasArray && aliasArray.length > 0 && { aliases: aliasArray }),
       phone: phone.trim(),
-      email: email.trim() || undefined,
+      email: email.trim(),
       address: address.trim() || undefined,
       notes: notes.trim() || undefined,
       joinDate,
@@ -360,7 +371,7 @@ export default function EditMemberScreen() {
         <View style={styles.inputContainer}>
           <View style={styles.inputHeader}>
             <Mail size={20} color={Colors.light.primary} />
-            <Text style={styles.inputHeaderLabel}>Email (Optional)</Text>
+            <Text style={styles.inputHeaderLabel}>Email*</Text>
           </View>
           <TextInput
             style={styles.input}
@@ -453,11 +464,10 @@ export default function EditMemberScreen() {
               
               {filteredMembers.length > 0 && (
                 <View style={styles.memberDropdown}>
-                  <FlatList
-                    data={filteredMembers.slice(0, 5)}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => (
+                  <ScrollView style={styles.memberDropdownScroll} nestedScrollEnabled={true}>
+                    {filteredMembers.slice(0, 5).map((item) => (
                       <TouchableOpacity
+                        key={item.id}
                         style={styles.memberDropdownItem}
                         onPress={() => handleAddAssociation(item.id)}
                       >
@@ -469,8 +479,8 @@ export default function EditMemberScreen() {
                           <Text style={styles.memberDropdownId}>ID: {item.memberId}</Text>
                         </View>
                       </TouchableOpacity>
-                    )}
-                  />
+                    ))}
+                  </ScrollView>
                 </View>
               )}
               
@@ -654,6 +664,9 @@ const styles = StyleSheet.create({
     maxHeight: 200,
     marginTop: 8,
     marginBottom: 8,
+  },
+  memberDropdownScroll: {
+    maxHeight: 200,
   },
   memberDropdownItem: {
     flexDirection: 'row',

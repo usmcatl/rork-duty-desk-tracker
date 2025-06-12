@@ -92,6 +92,13 @@ function RootLayoutNav() {
               }} 
             />
             <Stack.Screen 
+              name="edit-equipment/[id]" 
+              options={{ 
+                title: "Edit Equipment",
+                presentation: "modal",
+              }} 
+            />
+            <Stack.Screen 
               name="package/[id]" 
               options={{ 
                 title: "Package Details",
