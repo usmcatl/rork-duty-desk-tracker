@@ -1,4 +1,4 @@
-export type MemberBranch = 'Army' | 'Air Force' | 'Marine Corps' | 'Navy' | 'Coast Guard' | 'Space Force';
+export type MemberBranch = 'Army' | 'Air Force' | 'Marines' | 'Navy' | 'Coast Guard' | 'Space Force';
 export type MemberStatus = 'Active' | 'Inactive';
 export type MemberGroup = 'Legion' | 'SAL' | 'Auxiliary';
 
@@ -21,7 +21,7 @@ export type Member = {
 export const MEMBER_BRANCHES: MemberBranch[] = [
   'Army',
   'Air Force', 
-  'Marine Corps',
+  'Marines',
   'Navy',
   'Coast Guard',
   'Space Force'

@@ -7,6 +7,7 @@ import { useMemberStore } from '@/store/memberStore';
 import EmptyState from '@/components/EmptyState';
 import PackageCard from '@/components/PackageCard';
 import Button from '@/components/Button';
+import Dropdown from '@/components/Dropdown';
 import { Plus, Search, Filter, MapPin, CheckSquare } from 'lucide-react-native';
 
 // Package storage location options
@@ -126,25 +127,12 @@ export default function PackagesScreen() {
           
           <View style={styles.storageLocationContainer}>
             <Text style={styles.storageLocationLabel}>Storage Location:</Text>
-            <View style={styles.storageLocationOptions}>
-              {STORAGE_LOCATIONS.map((location) => (
-                <TouchableOpacity
-                  key={location}
-                  style={[
-                    styles.storageLocationOption,
-                    selectedStorageLocation === location && styles.selectedStorageLocationOption
-                  ]}
-                  onPress={() => setSelectedStorageLocation(location)}
-                >
-                  <Text style={[
-                    styles.storageLocationOptionText,
-                    selectedStorageLocation === location && styles.selectedStorageLocationOptionText
-                  ]}>
-                    {location}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Dropdown
+              options={STORAGE_LOCATIONS}
+              value={selectedStorageLocation}
+              onSelect={setSelectedStorageLocation}
+              placeholder="Select storage location"
+            />
           </View>
           
           <View style={styles.massUpdateActions}>
@@ -335,33 +323,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: Colors.light.text,
     marginBottom: 8,
-  },
-  storageLocationOptions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  storageLocationOption: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: Colors.light.background,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    marginHorizontal: 4,
-    alignItems: 'center',
-  },
-  selectedStorageLocationOption: {
-    backgroundColor: Colors.light.primary,
-    borderColor: Colors.light.primary,
-  },
-  storageLocationOptionText: {
-    fontSize: 14,
-    color: Colors.light.text,
-    textAlign: 'center',
-  },
-  selectedStorageLocationOptionText: {
-    color: '#fff',
-    fontWeight: '500',
   },
   massUpdateActions: {
     flexDirection: 'row',

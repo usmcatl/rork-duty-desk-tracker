@@ -8,8 +8,7 @@ import {
   TouchableOpacity, 
   Alert,
   Image,
-  Platform,
-  FlatList
+  Platform
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import Colors from '@/constants/colors';
@@ -17,7 +16,9 @@ import { usePackageStore } from '@/store/packageStore';
 import { useMemberStore } from '@/store/memberStore';
 import { DUTY_OFFICERS } from '@/constants/dutyOfficers';
 import Button from '@/components/Button';
+import Dropdown from '@/components/Dropdown';
 import { Camera, X, User, Plus, ChevronDown, Check } from 'lucide-react-native';
+import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 
 type PhotoType = 'package' | 'label' | 'storage';
 
@@ -33,10 +34,13 @@ const SENDER_OPTIONS = [
   'Other'
 ];
 
+const STORAGE_LOCATIONS = ['Bar Storage', 'Package Cage'];
+
 export default function AddPackageScreen() {
   const router = useRouter();
   const { addPackage } = usePackageStore();
   const { members, addMember, searchMembers } = useMemberStore();
+  const [permission, requestPermission] = useCameraPermissions();
   
   const [recipientName, setRecipientName] = useState('');
   const [selectedMemberId, setSelectedMemberId] = useState('');
@@ -57,12 +61,6 @@ export default function AddPackageScreen() {
   const [showMemberDropdown, setShowMemberDropdown] = useState(false);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [filteredMembers, setFilteredMembers] = useState(members);
-  
-  // Duty officer dropdown
-  const [showDutyOfficerDropdown, setShowDutyOfficerDropdown] = useState(false);
-  
-  // Sender dropdown
-  const [showSenderDropdown, setShowSenderDropdown] = useState(false);
   
   // New member creation
   const [showNewMemberForm, setShowNewMemberForm] = useState(false);
@@ -92,13 +90,44 @@ export default function AddPackageScreen() {
     setShowMemberDropdown(false);
   };
   
-  const handleTakePhoto = (photoType: PhotoType) => {
+  const handleTakePhoto = async (photoType: PhotoType) => {
+    if (Platform.OS === 'web') {
+      // For web, use a demo photo
+      const photoUri = `https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?q=80&w=500&t=${Date.now()}`;
+      
+      switch (photoType) {
+        case 'package':
+          setPackagePhotoUri(photoUri);
+          break;
+        case 'label':
+          setLabelPhotoUri(photoUri);
+          break;
+        case 'storage':
+          setStoragePhotoUri(photoUri);
+          break;
+      }
+      return;
+    }
+    
+    // Check camera permissions
+    if (!permission) {
+      return;
+    }
+    
+    if (!permission.granted) {
+      const result = await requestPermission();
+      if (!result.granted) {
+        Alert.alert('Permission Required', 'Camera permission is required to take photos.');
+        return;
+      }
+    }
+    
     setCurrentPhotoType(photoType);
     setShowCamera(true);
   };
   
   const handlePhotoTaken = () => {
-    // In a real app, you would capture the photo here
+    // In a real app, you would capture the photo here and get the actual URI
     // For demo purposes, we'll use a placeholder URL
     const photoUri = `https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?q=80&w=500&t=${Date.now()}`;
     
@@ -123,6 +152,18 @@ export default function AddPackageScreen() {
       return;
     }
     
+    if (!newMemberEmail.trim()) {
+      Alert.alert('Error', 'Email is required for new members.');
+      return;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newMemberEmail.trim())) {
+      Alert.alert('Error', 'Please enter a valid email address.');
+      return;
+    }
+    
     try {
       const aliases = newMemberAliases.trim() 
         ? newMemberAliases.split(',').map(alias => alias.trim()).filter(Boolean)
@@ -132,8 +173,10 @@ export default function AddPackageScreen() {
         name: newMemberName.trim(),
         memberId: `PKG${Date.now()}`,
         joinDate: new Date(),
+        email: newMemberEmail.trim(),
+        status: 'Active' as const,
+        group: 'Legion' as const,
         ...(newMemberPhone.trim() && { phone: newMemberPhone.trim() }),
-        ...(newMemberEmail.trim() && { email: newMemberEmail.trim() }),
         ...(aliases && aliases.length > 0 && { aliases }),
       };
       
@@ -242,23 +285,32 @@ export default function AddPackageScreen() {
       <View style={styles.cameraContainer}>
         <Stack.Screen options={{ headerShown: false }} />
         
-        <View style={styles.webCameraFallback}>
-          <Text style={styles.webCameraText}>
-            Take a photo of the {currentPhotoType === 'package' ? 'package' : 
-            currentPhotoType === 'label' ? 'shipping label' : 'storage location'}
-          </Text>
-          <Button
-            title="Use Demo Photo"
-            onPress={handlePhotoTaken}
-            style={styles.webCameraButton}
-          />
-          <Button
-            title="Cancel"
-            onPress={() => setShowCamera(false)}
-            variant="outline"
-            style={styles.webCameraButton}
-          />
-        </View>
+        <CameraView style={styles.camera} facing="back">
+          <View style={styles.cameraOverlay}>
+            <Text style={styles.cameraInstructions}>
+              Take a photo of the {currentPhotoType === 'package' ? 'package' : 
+              currentPhotoType === 'label' ? 'shipping label' : 'storage location'}
+            </Text>
+            
+            <View style={styles.cameraControls}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowCamera(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.captureButton}
+                onPress={handlePhotoTaken}
+              >
+                <View style={styles.captureButtonInner} />
+              </TouchableOpacity>
+              
+              <View style={styles.placeholder} />
+            </View>
+          </View>
+        </CameraView>
       </View>
     );
   }
@@ -288,11 +340,10 @@ export default function AddPackageScreen() {
               
               {showMemberDropdown && filteredMembers.length > 0 && (
                 <View style={styles.memberDropdown}>
-                  <FlatList
-                    data={filteredMembers.slice(0, 5)}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => (
+                  <ScrollView style={styles.memberDropdownScroll} nestedScrollEnabled={true}>
+                    {filteredMembers.slice(0, 5).map((item) => (
                       <TouchableOpacity
+                        key={item.id}
                         style={styles.memberDropdownItem}
                         onPress={() => handleMemberSelect(item)}
                       >
@@ -304,8 +355,8 @@ export default function AddPackageScreen() {
                           <Text style={styles.memberDropdownId}>ID: {item.memberId}</Text>
                         </View>
                       </TouchableOpacity>
-                    )}
-                  />
+                    ))}
+                  </ScrollView>
                   
                   <TouchableOpacity
                     style={styles.createMemberOption}
@@ -339,6 +390,16 @@ export default function AddPackageScreen() {
               
               <TextInput
                 style={styles.input}
+                value={newMemberEmail}
+                onChangeText={setNewMemberEmail}
+                placeholder="Email address *"
+                placeholderTextColor={Colors.light.subtext}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              
+              <TextInput
+                style={styles.input}
                 value={newMemberAliases}
                 onChangeText={setNewMemberAliases}
                 placeholder="Aliases (comma separated, optional)"
@@ -352,16 +413,6 @@ export default function AddPackageScreen() {
                 placeholder="Phone number (optional)"
                 placeholderTextColor={Colors.light.subtext}
                 keyboardType="phone-pad"
-              />
-              
-              <TextInput
-                style={styles.input}
-                value={newMemberEmail}
-                onChangeText={setNewMemberEmail}
-                placeholder="Email address (optional)"
-                placeholderTextColor={Colors.light.subtext}
-                keyboardType="email-address"
-                autoCapitalize="none"
               />
               
               <View style={styles.newMemberActions}>
@@ -397,48 +448,21 @@ export default function AddPackageScreen() {
           
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Sender *</Text>
-            <TouchableOpacity
-              style={[styles.input, styles.dropdownButton]}
-              onPress={() => setShowSenderDropdown(!showSenderDropdown)}
-            >
-              <Text style={[styles.dropdownText, !sender && styles.placeholderText]}>
-                {sender || 'Select sender'}
-              </Text>
-              <ChevronDown size={20} color={Colors.light.subtext} />
-            </TouchableOpacity>
-            
-            {showSenderDropdown && (
-              <View style={styles.dropdown}>
-                <FlatList
-                  data={SENDER_OPTIONS}
-                  keyExtractor={(item) => item}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      style={styles.dropdownItem}
-                      onPress={() => {
-                        setSender(item);
-                        setShowSenderDropdown(false);
-                      }}
-                    >
-                      <Text style={styles.dropdownItemText}>{item}</Text>
-                      {sender === item && (
-                        <Check size={16} color={Colors.light.primary} />
-                      )}
-                    </TouchableOpacity>
-                  )}
-                />
-              </View>
-            )}
+            <Dropdown
+              options={SENDER_OPTIONS}
+              value={sender}
+              onSelect={setSender}
+              placeholder="Select sender"
+            />
           </View>
           
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Storage Location *</Text>
-            <TextInput
-              style={styles.input}
+            <Dropdown
+              options={STORAGE_LOCATIONS}
               value={storageLocation}
-              onChangeText={setStorageLocation}
-              placeholder="e.g., Shelf A-3, Room 101"
-              placeholderTextColor={Colors.light.subtext}
+              onSelect={setStorageLocation}
+              placeholder="Select storage location"
             />
           </View>
         </View>
@@ -496,38 +520,12 @@ export default function AddPackageScreen() {
           
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Added By *</Text>
-            <TouchableOpacity
-              style={[styles.input, styles.dropdownButton]}
-              onPress={() => setShowDutyOfficerDropdown(!showDutyOfficerDropdown)}
-            >
-              <Text style={[styles.dropdownText, !addedBy && styles.placeholderText]}>
-                {addedBy || 'Select duty officer'}
-              </Text>
-              <ChevronDown size={20} color={Colors.light.subtext} />
-            </TouchableOpacity>
-            
-            {showDutyOfficerDropdown && (
-              <View style={styles.dropdown}>
-                <FlatList
-                  data={DUTY_OFFICERS}
-                  keyExtractor={(item) => item}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      style={styles.dropdownItem}
-                      onPress={() => {
-                        setAddedBy(item);
-                        setShowDutyOfficerDropdown(false);
-                      }}
-                    >
-                      <Text style={styles.dropdownItemText}>{item}</Text>
-                      {addedBy === item && (
-                        <Check size={16} color={Colors.light.primary} />
-                      )}
-                    </TouchableOpacity>
-                  )}
-                />
-              </View>
-            )}
+            <Dropdown
+              options={DUTY_OFFICERS}
+              value={addedBy}
+              onSelect={setAddedBy}
+              placeholder="Select duty officer"
+            />
           </View>
           
           <View style={styles.inputGroup}>
@@ -619,6 +617,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
+  memberDropdownScroll: {
+    maxHeight: 200,
+  },
   memberDropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -650,38 +651,6 @@ const styles = StyleSheet.create({
     color: Colors.light.primary,
     fontWeight: '500',
     marginLeft: 8,
-  },
-  dropdownButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dropdownText: {
-    fontSize: 16,
-    color: Colors.light.text,
-  },
-  placeholderText: {
-    color: Colors.light.subtext,
-  },
-  dropdown: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    maxHeight: 200,
-    marginTop: 4,
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
-  },
-  dropdownItemText: {
-    fontSize: 16,
-    color: Colors.light.text,
   },
   newMemberForm: {
     backgroundColor: Colors.light.card,
@@ -754,21 +723,56 @@ const styles = StyleSheet.create({
   cameraContainer: {
     flex: 1,
   },
-  webCameraFallback: {
+  camera: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.light.background,
+  },
+  cameraOverlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    justifyContent: 'space-between',
     padding: 20,
   },
-  webCameraText: {
+  cameraInstructions: {
+    color: 'white',
     fontSize: 18,
-    color: Colors.light.text,
-    marginBottom: 20,
     textAlign: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 16,
+    borderRadius: 8,
+    marginTop: 50,
   },
-  webCameraButton: {
-    width: 200,
-    marginVertical: 8,
+  cameraControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 50,
+  },
+  cancelButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+  },
+  cancelButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  captureButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  captureButtonInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: Colors.light.primary,
+  },
+  placeholder: {
+    width: 80,
   },
 });

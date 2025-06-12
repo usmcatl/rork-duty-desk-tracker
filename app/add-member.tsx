@@ -243,7 +243,7 @@ export default function AddMemberScreen() {
         <View style={styles.inputContainer}>
           <View style={styles.inputHeader}>
             <Phone size={20} color={Colors.light.primary} />
-            <Text style={styles.inputHeaderLabel}>Phone Number</Text>
+            <Text style={styles.inputHeaderLabel}>Phone Number (Optional)</Text>
           </View>
           <TextInput
             style={styles.input}
