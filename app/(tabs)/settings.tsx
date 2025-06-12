@@ -774,14 +774,14 @@ export default function SettingsScreen() {
           <TouchableOpacity style={styles.settingItem}>
             <View style={styles.settingLeft}>
               <Info size={20} color={Colors.light.text} style={styles.settingIcon} />
-              <Text style={styles.settingLabel}>About Medical Equipment Tracker</Text>
+              <Text style={styles.settingLabel}>About Post 7 Duty Desk Tracker</Text>
             </View>
             <ChevronRight size={20} color={Colors.light.subtext} />
           </TouchableOpacity>
           
           <View style={styles.aboutContainer}>
             <Text style={styles.aboutText}>
-              Created by James Turner for the American Legion Post No. 7 Lake Chapala Duty Desk Officers to keep track of all available medical devices for general membership and local residents
+              Created by James Turner for use at the American Legion Post No. 7 Lake Chapala for Duty Desk Officers. Please use this email should you run into any complex challenges: turnerii.james@gmail.com
             </Text>
           </View>
           

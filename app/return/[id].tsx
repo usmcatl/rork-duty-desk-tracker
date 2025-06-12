@@ -142,7 +142,11 @@ Deposit not returned reason: ${returnReason.trim()}`;
     if (!activeCheckout.expectedReturnDate) {
       return 'Unknown Date';
     }
-    return new Date(activeCheckout.expectedReturnDate).toLocaleDateString();
+    try {
+      return new Date(activeCheckout.expectedReturnDate).toLocaleDateString();
+    } catch (error) {
+      return 'Invalid Date';
+    }
   };
   
   return (
