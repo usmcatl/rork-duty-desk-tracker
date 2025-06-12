@@ -283,7 +283,7 @@ Deposit not returned reason: ${returnReason.trim()}`;
               <Text style={styles.overdueTitle}>Equipment is Overdue</Text>
             </View>
             <Text style={styles.overdueDescription}>
-              This equipment was due to be returned on {new Date(activeCheckout.expectedReturnDate).toLocaleDateString()}.
+              This equipment was due to be returned on {activeCheckout.expectedReturnDate ? new Date(activeCheckout.expectedReturnDate).toLocaleDateString() : 'Unknown Date'}.
               Consider discussing late fees or deposit withholding with the borrower.
             </Text>
           </View>
