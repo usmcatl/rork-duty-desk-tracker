@@ -137,6 +137,14 @@ Deposit not returned reason: ${returnReason.trim()}`;
   const isOverdue = activeCheckout.expectedReturnDate && 
     new Date() > new Date(activeCheckout.expectedReturnDate);
   
+  // Helper function to safely format expected return date
+  const formatExpectedReturnDate = () => {
+    if (!activeCheckout.expectedReturnDate) {
+      return 'Unknown Date';
+    }
+    return new Date(activeCheckout.expectedReturnDate).toLocaleDateString();
+  };
+  
   return (
     <View style={styles.container}>
       <Stack.Screen 
@@ -198,7 +206,7 @@ Deposit not returned reason: ${returnReason.trim()}`;
                 styles.infoValue,
                 isOverdue && styles.overdueText
               ]}>
-                {new Date(activeCheckout.expectedReturnDate).toLocaleDateString()}
+                {formatExpectedReturnDate()}
                 {isOverdue && " (OVERDUE)"}
               </Text>
             </View>
@@ -283,7 +291,7 @@ Deposit not returned reason: ${returnReason.trim()}`;
               <Text style={styles.overdueTitle}>Equipment is Overdue</Text>
             </View>
             <Text style={styles.overdueDescription}>
-              This equipment was due to be returned on {activeCheckout.expectedReturnDate ? new Date(activeCheckout.expectedReturnDate).toLocaleDateString() : 'Unknown Date'}.
+              This equipment was due to be returned on {formatExpectedReturnDate()}.
               Consider discussing late fees or deposit withholding with the borrower.
             </Text>
           </View>
