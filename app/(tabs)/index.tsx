@@ -7,7 +7,7 @@ import { usePackageStore } from '@/store/packageStore';
 import { useMemberStore } from '@/store/memberStore';
 import EquipmentNameplate from '@/components/EquipmentNameplate';
 import PackageCard from '@/components/PackageCard';
-import { Plus, Package, CheckSquare, Search, User, Users, ChevronRight, X, Package2, Clock, UserPlus } from 'lucide-react-native';
+import { Plus, Package, CheckSquare, Search, User, Users, ChevronRight, X, Package2, Clock, UserPlus, Settings } from 'lucide-react-native';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -217,7 +217,7 @@ export default function DashboardScreen() {
               style={styles.quickLink}
               onPress={() => router.push('/settings')}
             >
-              <Package size={24} color={Colors.light.primary} />
+              <Settings size={24} color={Colors.light.primary} />
               <Text style={styles.quickLinkText}>Settings</Text>
             </TouchableOpacity>
           </View>
@@ -359,7 +359,7 @@ export default function DashboardScreen() {
           style={styles.fab}
           onPress={handleAddEquipment}
         >
-          <Plus size={24} color="#fff" />
+          <Package size={24} color="#fff" />
         </TouchableOpacity>
       </View>
     </View>

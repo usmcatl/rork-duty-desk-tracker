@@ -26,11 +26,13 @@ import {
   Download,
   Upload,
   Cloud,
-  Users
+  Users,
+  Shield
 } from 'lucide-react-native';
 import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 import * as WebBrowser from 'expo-web-browser';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { convertToCSV, parseFromCSV, convertMembersToCSV, parseMembersFromCSV } from '@/utils/csvUtils';
 
 // Import Sharing conditionally for platform compatibility
@@ -64,10 +66,32 @@ export default function SettingsScreen() {
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [lastBackupDate, setLastBackupDate] = useState<string | null>(null);
+  const [biometricType, setBiometricType] = useState<string | null>(null);
   
   // Load duty officers when component mounts
   useEffect(() => {
     setLocalDutyOfficers(getDutyOfficers());
+    
+    // Check for biometric authentication availability
+    const checkBiometrics = async () => {
+      if (Platform.OS !== 'web') {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+        
+        if (hasHardware && isEnrolled) {
+          const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
+          if (supportedTypes.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+            setBiometricType('Fingerprint');
+          } else if (supportedTypes.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+            setBiometricType('Face ID');
+          } else {
+            setBiometricType('Biometric');
+          }
+        }
+      }
+    };
+    
+    checkBiometrics();
     
     // Check for last backup date in AsyncStorage
     const checkLastBackup = async () => {
@@ -93,6 +117,52 @@ export default function SettingsScreen() {
   const checkedOutCount = equipment.filter(item => item.status === 'checked-out').length;
   const totalCheckouts = checkoutRecords.length;
   const totalMembers = members.length;
+  
+  const authenticateUser = async (): Promise<boolean> => {
+    if (Platform.OS === 'web') {
+      // For web, use a simple confirmation dialog
+      return new Promise((resolve) => {
+        Alert.alert(
+          "Authentication Required",
+          "This action requires authentication. Continue?",
+          [
+            { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+            { text: "Continue", onPress: () => resolve(true) }
+          ]
+        );
+      });
+    }
+    
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      
+      if (!hasHardware || !isEnrolled) {
+        // Fallback to simple confirmation if no biometrics available
+        return new Promise((resolve) => {
+          Alert.alert(
+            "Authentication Required",
+            "Biometric authentication is not available. Continue with this action?",
+            [
+              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+              { text: "Continue", onPress: () => resolve(true) }
+            ]
+          );
+        });
+      }
+      
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Authenticate to continue',
+        fallbackLabel: 'Use Passcode',
+        cancelLabel: 'Cancel',
+      });
+      
+      return result.success;
+    } catch (error) {
+      console.error('Authentication error:', error);
+      return false;
+    }
+  };
   
   const handleAddOfficer = () => {
     if (!newOfficer.trim()) {
@@ -132,6 +202,13 @@ export default function SettingsScreen() {
   const handleExportData = async () => {
     if (Platform.OS === 'web') {
       Alert.alert("Not Available", "Export functionality is not available on web");
+      return;
+    }
+    
+    // Require authentication for export
+    const authenticated = await authenticateUser();
+    if (!authenticated) {
+      Alert.alert("Authentication Failed", "Authentication is required to export data");
       return;
     }
     
@@ -265,7 +342,10 @@ export default function SettingsScreen() {
                     email: member.email,
                     address: member.address,
                     notes: member.notes,
-                    joinDate: member.joinDate
+                    joinDate: member.joinDate,
+                    branch: member.branch,
+                    status: member.status,
+                    group: member.group
                   });
                 });
               }
@@ -437,7 +517,10 @@ export default function SettingsScreen() {
                             email: member.email,
                             address: member.address,
                             notes: member.notes,
-                            joinDate: member.joinDate
+                            joinDate: member.joinDate,
+                            branch: member.branch,
+                            status: member.status,
+                            group: member.group
                           });
                         });
                       }
@@ -459,7 +542,14 @@ export default function SettingsScreen() {
     }
   };
   
-  const handleClearData = () => {
+  const handleClearData = async () => {
+    // Require authentication for clearing data
+    const authenticated = await authenticateUser();
+    if (!authenticated) {
+      Alert.alert("Authentication Failed", "Authentication is required to clear all data");
+      return;
+    }
+    
     Alert.alert(
       "Clear All Data",
       "Are you sure you want to clear all equipment, checkout records, and member data? This action cannot be undone.",
@@ -506,6 +596,22 @@ export default function SettingsScreen() {
             </View>
           </View>
         </View>
+        
+        {/* Security Section */}
+        {biometricType && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Security</Text>
+            <View style={styles.securityCard}>
+              <View style={styles.securityHeader}>
+                <Shield size={24} color={Colors.light.primary} style={styles.securityIcon} />
+                <Text style={styles.securityTitle}>{biometricType} Authentication</Text>
+              </View>
+              <Text style={styles.securityDescription}>
+                {biometricType} authentication is enabled for sensitive operations like data export and clearing all data.
+              </Text>
+            </View>
+          </View>
+        )}
         
         {/* Duty Officers Section */}
         <View style={styles.section}>
@@ -738,6 +844,35 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 14,
     color: Colors.light.subtext,
+  },
+  securityCard: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  securityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  securityIcon: {
+    marginRight: 12,
+  },
+  securityTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  securityDescription: {
+    fontSize: 14,
+    color: Colors.light.subtext,
+    lineHeight: 20,
   },
   officerItem: {
     flexDirection: 'row',

@@ -9,6 +9,9 @@ import PackageCard from '@/components/PackageCard';
 import Button from '@/components/Button';
 import { Plus, Search, Filter, MapPin, CheckSquare } from 'lucide-react-native';
 
+// Package storage location options
+const STORAGE_LOCATIONS = ['Bar Storage', 'Package Cage'];
+
 export default function PackagesScreen() {
   const router = useRouter();
   const { packages, massUpdateStorageLocation } = usePackageStore();
@@ -18,7 +21,7 @@ export default function PackagesScreen() {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [showMassUpdate, setShowMassUpdate] = useState(false);
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
-  const [newStorageLocation, setNewStorageLocation] = useState('');
+  const [selectedStorageLocation, setSelectedStorageLocation] = useState<string>('');
   
   // Filter packages based on search and status
   const filteredPackages = packages.filter(pkg => {
@@ -57,22 +60,22 @@ export default function PackagesScreen() {
       return;
     }
     
-    if (!newStorageLocation.trim()) {
-      Alert.alert('Error', 'Please enter a new storage location.');
+    if (!selectedStorageLocation) {
+      Alert.alert('Error', 'Please select a storage location.');
       return;
     }
     
     Alert.alert(
       'Confirm Mass Update',
-      `Update storage location for ${selectedPackages.length} package(s) to "${newStorageLocation.trim()}"?`,
+      `Update storage location for ${selectedPackages.length} package(s) to "${selectedStorageLocation}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Update',
           onPress: () => {
-            massUpdateStorageLocation(selectedPackages, newStorageLocation.trim());
+            massUpdateStorageLocation(selectedPackages, selectedStorageLocation);
             setSelectedPackages([]);
-            setNewStorageLocation('');
+            setSelectedStorageLocation('');
             setShowMassUpdate(false);
             Alert.alert('Success', 'Storage locations updated successfully!');
           }
@@ -118,16 +121,31 @@ export default function PackagesScreen() {
         <View style={styles.massUpdateContainer}>
           <Text style={styles.massUpdateTitle}>Mass Update Storage Location</Text>
           <Text style={styles.massUpdateSubtitle}>
-            Select packages and enter new storage location
+            Select packages and choose new storage location
           </Text>
           
-          <TextInput
-            style={styles.massUpdateInput}
-            placeholder="New storage location"
-            value={newStorageLocation}
-            onChangeText={setNewStorageLocation}
-            placeholderTextColor={Colors.light.subtext}
-          />
+          <View style={styles.storageLocationContainer}>
+            <Text style={styles.storageLocationLabel}>Storage Location:</Text>
+            <View style={styles.storageLocationOptions}>
+              {STORAGE_LOCATIONS.map((location) => (
+                <TouchableOpacity
+                  key={location}
+                  style={[
+                    styles.storageLocationOption,
+                    selectedStorageLocation === location && styles.selectedStorageLocationOption
+                  ]}
+                  onPress={() => setSelectedStorageLocation(location)}
+                >
+                  <Text style={[
+                    styles.storageLocationOptionText,
+                    selectedStorageLocation === location && styles.selectedStorageLocationOptionText
+                  ]}>
+                    {location}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
           
           <View style={styles.massUpdateActions}>
             <Button
@@ -135,7 +153,7 @@ export default function PackagesScreen() {
               onPress={() => {
                 setShowMassUpdate(false);
                 setSelectedPackages([]);
-                setNewStorageLocation('');
+                setSelectedStorageLocation('');
               }}
               variant="outline"
               style={styles.massUpdateActionButton}
@@ -307,17 +325,43 @@ const styles = StyleSheet.create({
   massUpdateSubtitle: {
     fontSize: 14,
     color: Colors.light.subtext,
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  massUpdateInput: {
-    backgroundColor: Colors.light.background,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+  storageLocationContainer: {
+    marginBottom: 16,
+  },
+  storageLocationLabel: {
+    fontSize: 14,
+    fontWeight: '500',
     color: Colors.light.text,
+    marginBottom: 8,
+  },
+  storageLocationOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  storageLocationOption: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: Colors.light.background,
     borderWidth: 1,
     borderColor: Colors.light.border,
-    marginBottom: 12,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  selectedStorageLocationOption: {
+    backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
+  },
+  storageLocationOptionText: {
+    fontSize: 14,
+    color: Colors.light.text,
+    textAlign: 'center',
+  },
+  selectedStorageLocationOptionText: {
+    color: '#fff',
+    fontWeight: '500',
   },
   massUpdateActions: {
     flexDirection: 'row',

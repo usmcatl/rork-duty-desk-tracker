@@ -8,7 +8,7 @@ export type Member = {
   name: string;
   aliases?: string[]; // Alternative names or nicknames
   phone?: string; // Optional since not all members may have phone
-  email?: string; // Optional since not all members may have email
+  email: string; // Now mandatory
   address?: string;
   notes?: string;
   joinDate: Date;

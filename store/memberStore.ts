@@ -15,7 +15,7 @@ interface MemberState {
   searchMembers: (query: string) => Member[];
   importMembers: (members: Member[]) => void;
   setMembers: (members: Member[]) => void;
-  clearAllData: () => void;
+  clearAllMembers: () => void;
 }
 
 // Sample data for the app
@@ -164,6 +164,7 @@ export const useMemberStore = create<MemberState>()(
             id: member.id || Date.now().toString() + Math.random().toString(36).substring(2, 9),
             status: member.status || 'Active',
             group: member.group || 'Legion',
+            email: member.email || 'no-email@example.com', // Ensure email is present
           }));
           
           return {
@@ -176,7 +177,7 @@ export const useMemberStore = create<MemberState>()(
         set({ members });
       },
       
-      clearAllData: () => {
+      clearAllMembers: () => {
         set({
           members: [],
         });
