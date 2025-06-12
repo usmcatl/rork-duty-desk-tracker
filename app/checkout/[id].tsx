@@ -16,6 +16,7 @@ import Colors from '@/constants/colors';
 import { useEquipmentStore } from '@/store/equipmentStore';
 import { useMemberStore } from '@/store/memberStore';
 import Button from '@/components/Button';
+import Dropdown from '@/components/Dropdown';
 import { Calendar, User, Phone, FileText, DollarSign, Search, ChevronRight } from 'lucide-react-native';
 
 export default function CheckoutScreen() {
@@ -403,25 +404,12 @@ export default function CheckoutScreen() {
         
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>Duty Officer*</Text>
-          <View style={styles.officersContainer}>
-            {dutyOfficers.map((officer) => (
-              <TouchableOpacity
-                key={officer}
-                style={[
-                  styles.officerOption,
-                  selectedOfficer === officer && styles.selectedOfficerOption
-                ]}
-                onPress={() => setSelectedOfficer(officer)}
-              >
-                <Text style={[
-                  styles.officerOptionText,
-                  selectedOfficer === officer && styles.selectedOfficerText
-                ]}>
-                  {officer}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <Dropdown
+            options={dutyOfficers}
+            value={selectedOfficer}
+            onSelect={setSelectedOfficer}
+            placeholder="Select duty officer"
+          />
         </View>
         
         <Button
@@ -565,33 +553,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.light.error,
     fontStyle: 'italic',
-  },
-  officersContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
-  officerOption: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: Colors.light.card,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  selectedOfficerOption: {
-    backgroundColor: Colors.light.primary,
-    borderColor: Colors.light.primary,
-  },
-  officerOptionText: {
-    fontSize: 14,
-    color: Colors.light.text,
-  },
-  selectedOfficerText: {
-    color: '#fff',
-    fontWeight: '500',
   },
   checkoutButton: {
     marginTop: 12,
