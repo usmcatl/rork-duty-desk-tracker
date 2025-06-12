@@ -123,7 +123,8 @@ export default function SettingsScreen() {
       // For web, authentication is not available, so cancel the action
       Alert.alert(
         "Authentication Required",
-        "Device authentication is required for this action. This feature is not available on web."
+        "Device authentication is required for this action. This feature is not available on web.",
+        [{ text: "OK" }]
       );
       return false;
     }
@@ -136,7 +137,8 @@ export default function SettingsScreen() {
         // Authentication not available, cancel the action
         Alert.alert(
           "Authentication Required",
-          "Device authentication is required for this action. Please set up biometric authentication or passcode in your device settings."
+          "Device authentication is required for this action. Please set up biometric authentication or passcode in your device settings.",
+          [{ text: "OK" }]
         );
         return false;
       }
@@ -152,7 +154,8 @@ export default function SettingsScreen() {
       console.error('Authentication error:', error);
       Alert.alert(
         "Authentication Error",
-        "An error occurred during authentication. Please try again."
+        "An error occurred during authentication. Please try again.",
+        [{ text: "OK" }]
       );
       return false;
     }

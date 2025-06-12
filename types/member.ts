@@ -1,39 +1,56 @@
-export type MemberBranch = 'Army' | 'Air Force' | 'Marines' | 'Navy' | 'Coast Guard' | 'Space Force';
-export type MemberStatus = 'Active' | 'Inactive';
-export type MemberGroup = 'Legion' | 'SAL' | 'Auxiliary';
-
-export type Member = {
-  id: string;
-  memberId: string; // Organization member ID number
-  name: string;
-  aliases?: string[]; // Alternative names or nicknames
-  phone?: string; // Optional since not all members may have phone
-  email: string; // Now mandatory
-  address?: string;
-  notes?: string;
-  joinDate: Date;
-  associatedMembers?: string[]; // IDs of associated members (family, etc.)
-  branch?: MemberBranch; // Military branch
-  status: MemberStatus; // Active or Inactive status
-  group: MemberGroup; // Legion, SAL, or Auxiliary
-};
+export type MemberBranch = 'Army' | 'Navy' | 'Air Force' | 'Marines' | 'Coast Guard' | 'Space Force';
+export type MemberStatus = 'Active' | 'Inactive' | 'Suspended' | 'Deceased';
+export type MemberGroup = 'Legion' | 'Auxiliary' | 'Sons of the American Legion' | 'Legion Riders';
 
 export const MEMBER_BRANCHES: MemberBranch[] = [
   'Army',
-  'Air Force', 
+  'Navy', 
+  'Air Force',
   'Marines',
-  'Navy',
   'Coast Guard',
   'Space Force'
 ];
 
 export const MEMBER_STATUSES: MemberStatus[] = [
   'Active',
-  'Inactive'
+  'Inactive',
+  'Suspended',
+  'Deceased'
 ];
 
 export const MEMBER_GROUPS: MemberGroup[] = [
   'Legion',
-  'SAL',
-  'Auxiliary'
+  'Auxiliary',
+  'Sons of the American Legion',
+  'Legion Riders'
 ];
+
+export interface Member {
+  id: string;
+  memberId: string;
+  name: string;
+  aliases?: string[];
+  phone?: string;
+  email: string;
+  address?: string;
+  notes?: string;
+  joinDate: Date;
+  branch?: MemberBranch;
+  status: MemberStatus;
+  group: MemberGroup;
+  associatedMembers?: string[]; // Array of member IDs
+}
+
+export interface MemberFormData {
+  memberId: string;
+  name: string;
+  aliases?: string[];
+  phone?: string;
+  email: string;
+  address?: string;
+  notes?: string;
+  joinDate: Date;
+  branch?: MemberBranch;
+  status: MemberStatus;
+  group: MemberGroup;
+}

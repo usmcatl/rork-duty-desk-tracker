@@ -14,7 +14,7 @@ import { useRouter, Stack } from 'expo-router';
 import Colors from '@/constants/colors';
 import { usePackageStore } from '@/store/packageStore';
 import { useMemberStore } from '@/store/memberStore';
-import { DUTY_OFFICERS } from '@/constants/dutyOfficers';
+import { useEquipmentStore } from '@/store/equipmentStore';
 import Button from '@/components/Button';
 import Dropdown from '@/components/Dropdown';
 import { Camera, X, User, Plus, ChevronDown, Check } from 'lucide-react-native';
@@ -40,6 +40,7 @@ export default function AddPackageScreen() {
   const router = useRouter();
   const { addPackage } = usePackageStore();
   const { members, addMember, searchMembers } = useMemberStore();
+  const { getDutyOfficers } = useEquipmentStore();
   const [permission, requestPermission] = useCameraPermissions();
   
   const [recipientName, setRecipientName] = useState('');
@@ -68,6 +69,9 @@ export default function AddPackageScreen() {
   const [newMemberPhone, setNewMemberPhone] = useState('');
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [newMemberAliases, setNewMemberAliases] = useState('');
+  
+  // Get duty officers from settings
+  const dutyOfficers = getDutyOfficers();
   
   const handleMemberSearch = (query: string) => {
     setMemberSearchQuery(query);
@@ -521,7 +525,7 @@ export default function AddPackageScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Added By *</Text>
             <Dropdown
-              options={DUTY_OFFICERS}
+              options={dutyOfficers}
               value={addedBy}
               onSelect={setAddedBy}
               placeholder="Select duty officer"
