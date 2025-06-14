@@ -5,20 +5,23 @@ import Colors from '@/constants/colors';
 import { useEquipmentStore } from '@/store/equipmentStore';
 import { usePackageStore } from '@/store/packageStore';
 import { useMemberStore } from '@/store/memberStore';
+import { useShiftStore } from '@/store/shiftStore';
 import EquipmentNameplate from '@/components/EquipmentNameplate';
 import PackageCard from '@/components/PackageCard';
 import Button from '@/components/Button';
-import { Plus, Package, CheckSquare, Search, User, Users, ChevronRight, X, Package2, Clock, UserPlus, Settings, AlertTriangle, Calendar } from 'lucide-react-native';
+import { Plus, Package, CheckSquare, Search, User, Users, ChevronRight, X, Package2, Clock, UserPlus, Settings, AlertTriangle, Calendar, Tablet, RefreshCw } from 'lucide-react-native';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { equipment, checkoutRecords, getOverdueEquipment } = useEquipmentStore();
   const { packages } = usePackageStore();
   const { members, getMemberById } = useMemberStore();
+  const { currentShift, isShiftChangeoverDue, setLastChangeoverCheck } = useShiftStore();
   
   const [showMemberSearch, setShowMemberSearch] = useState(false);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [showOverdueDialog, setShowOverdueDialog] = useState(false);
+  const [showChangeoverPrompt, setShowChangeoverPrompt] = useState(false);
   const [lastOverdueCheck10am, setLastOverdueCheck10am] = useState<Date | null>(null);
   const [lastOverdueCheck1pm, setLastOverdueCheck1pm] = useState<Date | null>(null);
   
@@ -59,6 +62,23 @@ export default function DashboardScreen() {
   const recentPackages = packages
     .filter(pkg => new Date(pkg.arrivalDate) > sevenDaysAgo)
     .sort((a, b) => new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime());
+  
+  // Check for shift changeover on app start and periodically
+  useEffect(() => {
+    const checkShiftChangeover = () => {
+      if (isShiftChangeoverDue()) {
+        setShowChangeoverPrompt(true);
+      }
+    };
+    
+    // Check immediately
+    checkShiftChangeover();
+    
+    // Set up interval to check every 30 minutes
+    const interval = setInterval(checkShiftChangeover, 30 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [isShiftChangeoverDue]);
   
   // Check for overdue equipment at 10am and 1pm
   useEffect(() => {
@@ -150,8 +170,72 @@ export default function DashboardScreen() {
     router.push('/equipment');
   };
   
+  const handleChangeoverPromptClose = () => {
+    setShowChangeoverPrompt(false);
+    setLastChangeoverCheck(new Date());
+  };
+  
+  const handleStartChangeover = () => {
+    setShowChangeoverPrompt(false);
+    router.push('/tablet-changeover');
+  };
+  
+  const getShiftDuration = () => {
+    if (!currentShift) return '';
+    const now = new Date();
+    const start = new Date(currentShift.startTime);
+    const hours = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60));
+    const minutes = Math.floor(((now.getTime() - start.getTime()) % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
+  };
+  
   return (
     <View style={styles.container}>
+      {/* Shift Changeover Prompt */}
+      <Modal
+        visible={showChangeoverPrompt}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleChangeoverPromptClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Tablet size={24} color={Colors.light.primary} />
+              <Text style={styles.modalTitle}>Shift Changeover Required</Text>
+            </View>
+            
+            <Text style={styles.modalMessage}>
+              {currentShift 
+                ? `The current shift has been active for ${getShiftDuration()}. It's time for a tablet changeover.`
+                : "No active shift detected. Please complete the tablet changeover to begin your shift."
+              }
+            </Text>
+            
+            {currentShift && (
+              <View style={styles.currentShiftInfo}>
+                <Text style={styles.currentShiftLabel}>Current Officer:</Text>
+                <Text style={styles.currentShiftOfficer}>{currentShift.dutyOfficer}</Text>
+              </View>
+            )}
+            
+            <View style={styles.modalButtons}>
+              <Button
+                title="Remind Later"
+                onPress={handleChangeoverPromptClose}
+                variant="outline"
+                style={styles.modalButton}
+              />
+              <Button
+                title="Start Changeover"
+                onPress={handleStartChangeover}
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+      
       {/* Overdue Equipment Dialog */}
       <Modal
         visible={showOverdueDialog}
@@ -214,6 +298,30 @@ export default function DashboardScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {/* Current Shift Status */}
+        {currentShift && (
+          <View style={styles.shiftStatusCard}>
+            <View style={styles.shiftStatusHeader}>
+              <View style={styles.shiftStatusIcon}>
+                <Tablet size={20} color={Colors.light.primary} />
+              </View>
+              <View style={styles.shiftStatusContent}>
+                <Text style={styles.shiftStatusTitle}>Current Shift</Text>
+                <Text style={styles.shiftStatusOfficer}>{currentShift.dutyOfficer}</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.changeoverButton}
+                onPress={() => router.push('/tablet-changeover')}
+              >
+                <RefreshCw size={16} color={Colors.light.primary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.shiftStatusDuration}>
+              Active for {getShiftDuration()} • Started {new Date(currentShift.startTime).toLocaleTimeString()}
+            </Text>
+          </View>
+        )}
+        
         {/* Stats Section */}
         <View style={styles.statsContainer}>
           <View style={[styles.statCard, styles.availableStat]}>
@@ -567,6 +675,58 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 80,
+  },
+  shiftStatusCard: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.light.primary,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  shiftStatusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  shiftStatusIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.light.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  shiftStatusContent: {
+    flex: 1,
+  },
+  shiftStatusTitle: {
+    fontSize: 14,
+    color: Colors.light.subtext,
+    marginBottom: 2,
+  },
+  shiftStatusOfficer: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  changeoverButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.light.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shiftStatusDuration: {
+    fontSize: 12,
+    color: Colors.light.subtext,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -930,6 +1090,22 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     lineHeight: 24,
     marginBottom: 16,
+  },
+  currentShiftInfo: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+  },
+  currentShiftLabel: {
+    fontSize: 14,
+    color: Colors.light.subtext,
+    marginBottom: 4,
+  },
+  currentShiftOfficer: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.light.primary,
   },
   overdueList: {
     backgroundColor: Colors.light.card,

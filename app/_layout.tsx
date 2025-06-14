@@ -138,6 +138,15 @@ function RootLayoutNav() {
                 presentation: "modal",
               }} 
             />
+            <Stack.Screen 
+              name="tablet-changeover" 
+              options={{ 
+                title: "Tablet Changeover",
+                presentation: "modal",
+                headerLeft: () => null,
+                gestureEnabled: false,
+              }} 
+            />
           </Stack>
         </QueryClientProvider>
       </trpc.Provider>

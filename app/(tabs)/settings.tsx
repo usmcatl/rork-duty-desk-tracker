@@ -13,6 +13,7 @@ import {
 import Colors from '@/constants/colors';
 import { useEquipmentStore } from '@/store/equipmentStore';
 import { useMemberStore } from '@/store/memberStore';
+import { useShiftStore } from '@/store/shiftStore';
 import Button from '@/components/Button';
 import { 
   Settings, 
@@ -27,7 +28,10 @@ import {
   Upload,
   Cloud,
   Users,
-  Shield
+  Shield,
+  Clock,
+  Tablet,
+  Calendar
 } from 'lucide-react-native';
 import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
@@ -58,6 +62,13 @@ export default function SettingsScreen() {
     clearAllMembers
   } = useMemberStore();
   
+  const {
+    currentShift,
+    shiftHistory,
+    getShiftHistory,
+    clearShiftData
+  } = useShiftStore();
+  
   const [dutyOfficers, setLocalDutyOfficers] = useState<string[]>([]);
   const [newOfficer, setNewOfficer] = useState('');
   const [isAddingOfficer, setIsAddingOfficer] = useState(false);
@@ -67,6 +78,7 @@ export default function SettingsScreen() {
   const [isRestoring, setIsRestoring] = useState(false);
   const [lastBackupDate, setLastBackupDate] = useState<string | null>(null);
   const [biometricType, setBiometricType] = useState<string | null>(null);
+  const [showShiftHistory, setShowShiftHistory] = useState(false);
   
   // Load duty officers when component mounts
   useEffect(() => {
@@ -117,6 +129,7 @@ export default function SettingsScreen() {
   const checkedOutCount = equipment.filter(item => item.status === 'checked-out').length;
   const totalCheckouts = checkoutRecords.length;
   const totalMembers = members.length;
+  const totalShifts = getShiftHistory().length + (currentShift ? 1 : 0);
   
   const authenticateUser = async (): Promise<boolean> => {
     if (Platform.OS === 'web') {
@@ -547,7 +560,7 @@ export default function SettingsScreen() {
     
     Alert.alert(
       "Clear All Data",
-      "Are you sure you want to clear all equipment, checkout records, and member data? This action cannot be undone.",
+      "Are you sure you want to clear all equipment, checkout records, member data, and shift history? This action cannot be undone.",
       [
         {
           text: "Cancel",
@@ -559,11 +572,20 @@ export default function SettingsScreen() {
           onPress: () => {
             clearAllData();
             clearAllMembers();
+            clearShiftData();
             Alert.alert("Success", "All data has been cleared.");
           }
         }
       ]
     );
+  };
+  
+  const formatShiftDuration = (start: Date, end?: Date) => {
+    const endTime = end || new Date();
+    const duration = endTime.getTime() - start.getTime();
+    const hours = Math.floor(duration / (1000 * 60 * 60));
+    const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
   };
   
   return (
@@ -586,10 +608,90 @@ export default function SettingsScreen() {
               <Text style={styles.statLabel}>Members</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{totalCheckouts}</Text>
-              <Text style={styles.statLabel}>Total Checkouts</Text>
+              <Text style={styles.statValue}>{totalShifts}</Text>
+              <Text style={styles.statLabel}>Total Shifts</Text>
             </View>
           </View>
+        </View>
+        
+        {/* Current Shift Section */}
+        {currentShift && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Current Shift</Text>
+            <View style={styles.currentShiftCard}>
+              <View style={styles.currentShiftHeader}>
+                <Tablet size={24} color={Colors.light.primary} style={styles.currentShiftIcon} />
+                <Text style={styles.currentShiftTitle}>Active Duty Officer</Text>
+              </View>
+              
+              <Text style={styles.currentShiftOfficer}>{currentShift.dutyOfficer}</Text>
+              <Text style={styles.currentShiftTime}>
+                Started: {new Date(currentShift.startTime).toLocaleString()}
+              </Text>
+              <Text style={styles.currentShiftDuration}>
+                Duration: {formatShiftDuration(new Date(currentShift.startTime))}
+              </Text>
+              
+              {currentShift.notes && (
+                <View style={styles.currentShiftNotes}>
+                  <Text style={styles.currentShiftNotesTitle}>Shift Notes:</Text>
+                  <Text style={styles.currentShiftNotesText}>{currentShift.notes}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+        
+        {/* Shift History Section */}
+        <View style={styles.section}>
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => setShowShiftHistory(!showShiftHistory)}
+          >
+            <View style={styles.settingLeft}>
+              <Clock size={20} color={Colors.light.text} style={styles.settingIcon} />
+              <Text style={styles.settingLabel}>Shift History</Text>
+            </View>
+            <ChevronRight 
+              size={20} 
+              color={Colors.light.subtext} 
+              style={{ transform: [{ rotate: showShiftHistory ? '90deg' : '0deg' }] }}
+            />
+          </TouchableOpacity>
+          
+          {showShiftHistory && (
+            <View style={styles.shiftHistoryContainer}>
+              {getShiftHistory().length > 0 ? (
+                getShiftHistory().slice(0, 5).map(shift => (
+                  <View key={shift.id} style={styles.shiftHistoryItem}>
+                    <View style={styles.shiftHistoryHeader}>
+                      <Text style={styles.shiftHistoryOfficer}>{shift.dutyOfficer}</Text>
+                      <Text style={styles.shiftHistoryDuration}>
+                        {formatShiftDuration(new Date(shift.startTime), shift.endTime ? new Date(shift.endTime) : undefined)}
+                      </Text>
+                    </View>
+                    <Text style={styles.shiftHistoryDate}>
+                      {new Date(shift.startTime).toLocaleDateString()} • {new Date(shift.startTime).toLocaleTimeString()}
+                      {shift.endTime && ` - ${new Date(shift.endTime).toLocaleTimeString()}`}
+                    </Text>
+                    {shift.notes && (
+                      <Text style={styles.shiftHistoryNotes} numberOfLines={2}>
+                        {shift.notes}
+                      </Text>
+                    )}
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.emptyText}>No shift history available</Text>
+              )}
+              
+              {getShiftHistory().length > 5 && (
+                <Text style={styles.moreHistoryText}>
+                  +{getShiftHistory().length - 5} more shifts
+                </Text>
+              )}
+            </View>
+          )}
         </View>
         
         {/* Security Section */}
@@ -839,6 +941,119 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 14,
     color: Colors.light.subtext,
+  },
+  currentShiftCard: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 2,
+    elevation: 1,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.light.primary,
+  },
+  currentShiftHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  currentShiftIcon: {
+    marginRight: 12,
+  },
+  currentShiftTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  currentShiftOfficer: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.light.primary,
+    marginBottom: 8,
+  },
+  currentShiftTime: {
+    fontSize: 14,
+    color: Colors.light.subtext,
+    marginBottom: 4,
+  },
+  currentShiftDuration: {
+    fontSize: 14,
+    color: Colors.light.subtext,
+    marginBottom: 12,
+  },
+  currentShiftNotes: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+    paddingTop: 12,
+  },
+  currentShiftNotesTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginBottom: 4,
+  },
+  currentShiftNotesText: {
+    fontSize: 14,
+    color: Colors.light.subtext,
+    lineHeight: 20,
+  },
+  shiftHistoryContainer: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  shiftHistoryItem: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+    paddingBottom: 12,
+    marginBottom: 12,
+  },
+  shiftHistoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  shiftHistoryOfficer: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  shiftHistoryDuration: {
+    fontSize: 14,
+    color: Colors.light.primary,
+    fontWeight: '500',
+  },
+  shiftHistoryDate: {
+    fontSize: 12,
+    color: Colors.light.subtext,
+    marginBottom: 4,
+  },
+  shiftHistoryNotes: {
+    fontSize: 12,
+    color: Colors.light.subtext,
+    fontStyle: 'italic',
+  },
+  moreHistoryText: {
+    fontSize: 12,
+    color: Colors.light.subtext,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: Colors.light.subtext,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: 16,
   },
   securityCard: {
     backgroundColor: Colors.light.card,
