@@ -5,21 +5,35 @@ import Colors from '@/constants/colors';
 import { useEquipmentStore } from '@/store/equipmentStore';
 import EquipmentCard from '@/components/EquipmentCard';
 import EmptyState from '@/components/EmptyState';
-import { Plus, Search, Filter, Package, CheckSquare, List } from 'lucide-react-native';
+import { Plus, Search, Filter, Package, CheckSquare, List, AlertTriangle } from 'lucide-react-native';
 
-type FilterType = 'all' | 'available' | 'checked-out';
+type FilterType = 'all' | 'available' | 'checked-out' | 'overdue';
 
 export default function EquipmentScreen() {
   const router = useRouter();
-  const { equipment } = useEquipmentStore();
+  const { equipment, checkoutRecords } = useEquipmentStore();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<FilterType>('all');
   
+  // Get overdue equipment
+  const overdueEquipment = equipment.filter(item => {
+    if (item.status !== 'checked-out') return false;
+    
+    const currentCheckout = checkoutRecords.find(
+      record => record.equipmentId === item.id && !record.returnDate
+    );
+    
+    return currentCheckout && new Date() > new Date(currentCheckout.expectedReturnDate);
+  });
+  
   // Filter equipment based on status
   const statusFilteredEquipment = equipment.filter(item => {
     if (statusFilter === 'all') return true;
+    if (statusFilter === 'overdue') {
+      return overdueEquipment.some(overdueItem => overdueItem.id === item.id);
+    }
     return item.status === statusFilter;
   });
   
@@ -46,6 +60,7 @@ export default function EquipmentScreen() {
       case 'all': return 'All Equipment';
       case 'available': return 'Available';
       case 'checked-out': return 'Checked Out';
+      case 'overdue': return `Overdue (${overdueEquipment.length})`;
     }
   };
   
@@ -54,6 +69,21 @@ export default function EquipmentScreen() {
       case 'all': return <List size={18} color={statusFilter === filter ? '#fff' : Colors.light.primary} />;
       case 'available': return <Package size={18} color={statusFilter === filter ? '#fff' : Colors.light.success} />;
       case 'checked-out': return <CheckSquare size={18} color={statusFilter === filter ? '#fff' : Colors.light.error} />;
+      case 'overdue': return <AlertTriangle size={18} color={statusFilter === filter ? '#fff' : Colors.light.flagRed} />;
+    }
+  };
+  
+  const getStatusFilterStyle = (filter: FilterType) => {
+    if (statusFilter === filter) {
+      switch (filter) {
+        case 'overdue': return styles.selectedOverdueFilterChip;
+        default: return styles.selectedStatusFilterChip;
+      }
+    }
+    
+    switch (filter) {
+      case 'overdue': return overdueEquipment.length > 0 ? styles.overdueFilterChip : styles.statusFilterChip;
+      default: return styles.statusFilterChip;
     }
   };
   
@@ -90,12 +120,12 @@ export default function EquipmentScreen() {
         style={styles.filtersContainer}
         contentContainerStyle={styles.filtersContent}
       >
-        {(['all', 'available', 'checked-out'] as FilterType[]).map(filter => (
+        {(['all', 'available', 'checked-out', 'overdue'] as FilterType[]).map(filter => (
           <TouchableOpacity
             key={filter}
             style={[
               styles.statusFilterChip,
-              statusFilter === filter && styles.selectedStatusFilterChip
+              getStatusFilterStyle(filter)
             ]}
             onPress={() => {
               setStatusFilter(filter);
@@ -165,7 +195,11 @@ export default function EquipmentScreen() {
           <>
             <Text style={styles.headerText}>
               {filteredEquipment.length} item{filteredEquipment.length !== 1 ? 's' : ''} 
-              {statusFilter !== 'all' && ` ${statusFilter === 'available' ? 'available' : 'checked out'}`}
+              {statusFilter !== 'all' && ` ${
+                statusFilter === 'available' ? 'available' : 
+                statusFilter === 'checked-out' ? 'checked out' :
+                statusFilter === 'overdue' ? 'overdue' : ''
+              }`}
             </Text>
             
             {filteredEquipment.map(item => (
@@ -239,6 +273,14 @@ const styles = StyleSheet.create({
   selectedStatusFilterChip: {
     backgroundColor: Colors.light.primary,
     borderColor: Colors.light.primary,
+  },
+  overdueFilterChip: {
+    backgroundColor: 'rgba(220, 20, 60, 0.1)',
+    borderColor: Colors.light.flagRed,
+  },
+  selectedOverdueFilterChip: {
+    backgroundColor: Colors.light.flagRed,
+    borderColor: Colors.light.flagRed,
   },
   statusFilterText: {
     fontSize: 14,

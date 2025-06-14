@@ -11,7 +11,7 @@ import { Plus, Package, CheckSquare, Search, User, Users, ChevronRight, X, Packa
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { equipment, checkoutRecords } = useEquipmentStore();
+  const { equipment, checkoutRecords, getOverdueEquipment } = useEquipmentStore();
   const { packages } = usePackageStore();
   const { members, getMemberById } = useMemberStore();
   
@@ -22,6 +22,9 @@ export default function DashboardScreen() {
   const checkedOutEquipment = equipment.filter(item => item.status === 'checked-out');
   const pendingPackages = packages.filter(pkg => pkg.status === 'pending');
   const pickedUpPackages = packages.filter(pkg => pkg.status === 'picked-up');
+  
+  // Get overdue equipment
+  const overdueEquipment = getOverdueEquipment();
   
   // Get recent checkouts (last 7 days)
   const sevenDaysAgo = new Date();
@@ -309,26 +312,47 @@ export default function DashboardScreen() {
           </View>
         </View>
         
-        {/* Recently Added Equipment */}
+        {/* Equipment Updates Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recently Added Equipment</Text>
+          <Text style={styles.sectionTitle}>Equipment Updates</Text>
           
           {equipment.length > 0 ? (
-            equipment
-              .sort((a, b) => new Date(b.addedDate).getTime() - new Date(a.addedDate).getTime())
-              .slice(0, 3)
-              .map(item => (
-                <EquipmentNameplate key={item.id} equipment={item} />
-              ))
+            <>
+              {/* Show overdue equipment first */}
+              {overdueEquipment.length > 0 && (
+                <>
+                  {overdueEquipment.map(item => (
+                    <EquipmentNameplate 
+                      key={`overdue-${item.id}`} 
+                      equipment={item} 
+                      showOverdueIndicator={true}
+                    />
+                  ))}
+                  {/* Add separator if there are both overdue and recent equipment */}
+                  {equipment.length > overdueEquipment.length && (
+                    <View style={styles.separator} />
+                  )}
+                </>
+              )}
+              
+              {/* Show recently added equipment (excluding overdue ones) */}
+              {equipment
+                .filter(item => !overdueEquipment.some(overdue => overdue.id === item.id))
+                .sort((a, b) => new Date(b.addedDate).getTime() - new Date(a.addedDate).getTime())
+                .slice(0, 3)
+                .map(item => (
+                  <EquipmentNameplate key={item.id} equipment={item} />
+                ))}
+            </>
           ) : (
             <Text style={styles.emptyText}>No equipment added yet</Text>
           )}
         </View>
         
-        {/* Recent Packages */}
+        {/* Package Updates */}
         {packages.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Packages</Text>
+            <Text style={styles.sectionTitle}>Package Updates</Text>
             
             {packages
               .sort((a, b) => new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime())
@@ -612,6 +636,12 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     padding: 16,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: Colors.light.border,
+    marginVertical: 16,
+    marginHorizontal: 8,
   },
   fabContainer: {
     position: 'absolute',

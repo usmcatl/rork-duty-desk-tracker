@@ -24,13 +24,16 @@ import {
   AlertCircle,
   Trash2,
   DollarSign,
-  Edit
+  Edit,
+  AlertTriangle,
+  Clock
 } from 'lucide-react-native';
 
 export default function EquipmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { equipment, checkoutRecords, removeEquipment } = useEquipmentStore();
+  const { getMemberById } = useMemberStore();
   
   const item = equipment.find(e => e.id === id);
   
@@ -49,6 +52,16 @@ export default function EquipmentDetailScreen() {
   const itemCheckoutRecords = checkoutRecords
     .filter(record => record.equipmentId === id)
     .sort((a, b) => new Date(b.checkoutDate).getTime() - new Date(a.checkoutDate).getTime());
+  
+  // Get current checkout record if equipment is checked out
+  const currentCheckout = itemCheckoutRecords.find(record => !record.returnDate);
+  const currentMember = currentCheckout ? getMemberById(currentCheckout.memberId) : null;
+  
+  // Check if equipment is overdue
+  const isOverdue = currentCheckout && new Date() > new Date(currentCheckout.expectedReturnDate);
+  const daysOverdue = currentCheckout && isOverdue 
+    ? Math.ceil((new Date().getTime() - new Date(currentCheckout.expectedReturnDate).getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
   
   const handleCheckout = () => {
     router.push(`/checkout/${id}`);
@@ -85,7 +98,21 @@ export default function EquipmentDetailScreen() {
   
   const formatDate = (date?: Date) => {
     if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString();
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+  
+  const formatMemberDisplay = (member: any) => {
+    if (!member) return 'Unknown Member';
+    
+    let display = member.name;
+    if (member.aliases && member.aliases.length > 0) {
+      display += ` "${member.aliases.join('", "')}"`;
+    }
+    return display;
   };
   
   return (
@@ -126,10 +153,13 @@ export default function EquipmentDetailScreen() {
         <View style={styles.statusContainer}>
           <View style={[
             styles.statusBadge, 
-            item.status === 'available' ? styles.availableBadge : styles.checkedOutBadge
+            item.status === 'available' ? styles.availableBadge : 
+            isOverdue ? styles.overdueBadge : styles.checkedOutBadge
           ]}>
             {item.status === 'available' ? (
               <CheckCircle size={16} color={Colors.light.success} />
+            ) : isOverdue ? (
+              <AlertTriangle size={16} color="#fff" />
             ) : (
               <AlertCircle size={16} color={Colors.light.error} />
             )}
@@ -137,13 +167,73 @@ export default function EquipmentDetailScreen() {
               styles.statusText,
               item.status === 'available' ? styles.availableText : styles.checkedOutText
             ]}>
-              {item.status === 'available' ? 'Available' : 'Checked Out'}
+              {item.status === 'available' ? 'Available' : 
+               isOverdue ? `Overdue ${daysOverdue} days` : 'Checked Out'}
             </Text>
           </View>
         </View>
         
         <Text style={styles.title}>{item.name}</Text>
         <Text style={styles.description}>{item.description}</Text>
+        
+        {/* Current Checkout Info */}
+        {currentCheckout && (
+          <View style={[
+            styles.checkoutInfoContainer,
+            isOverdue && styles.overdueCheckoutInfo
+          ]}>
+            <View style={styles.checkoutInfoHeader}>
+              <Clock size={20} color={isOverdue ? Colors.light.error : Colors.light.primary} />
+              <Text style={[
+                styles.checkoutInfoTitle,
+                isOverdue && styles.overdueText
+              ]}>
+                Current Checkout
+              </Text>
+              {isOverdue && (
+                <AlertTriangle size={20} color={Colors.light.error} style={styles.overdueIcon} />
+              )}
+            </View>
+            
+            <View style={styles.checkoutInfoContent}>
+              <View style={styles.checkoutInfoRow}>
+                <Text style={styles.checkoutInfoLabel}>Checked out to:</Text>
+                <Text style={[
+                  styles.checkoutInfoValue,
+                  isOverdue && styles.overdueText
+                ]}>
+                  {formatMemberDisplay(currentMember)}
+                </Text>
+              </View>
+              
+              <View style={styles.checkoutInfoRow}>
+                <Text style={styles.checkoutInfoLabel}>Checkout date:</Text>
+                <Text style={styles.checkoutInfoValue}>
+                  {formatDate(currentCheckout.checkoutDate)}
+                </Text>
+              </View>
+              
+              <View style={styles.checkoutInfoRow}>
+                <Text style={styles.checkoutInfoLabel}>Expected return:</Text>
+                <Text style={[
+                  styles.checkoutInfoValue,
+                  isOverdue && styles.overdueText
+                ]}>
+                  {formatDate(currentCheckout.expectedReturnDate)}
+                </Text>
+              </View>
+              
+              {isOverdue && (
+                <View style={styles.overdueWarning}>
+                  <AlertTriangle size={16} color={Colors.light.error} />
+                  <Text style={styles.overdueWarningText}>
+                    This equipment is {daysOverdue} day{daysOverdue !== 1 ? 's' : ''} overdue for return
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
         
         <View style={styles.detailsContainer}>
           <View style={styles.detailItem}>
@@ -222,9 +312,9 @@ export default function EquipmentDetailScreen() {
           />
         ) : (
           <Button
-            title="Return Equipment"
+            title={isOverdue ? "Return Overdue Equipment" : "Return Equipment"}
             onPress={handleReturn}
-            style={styles.footerButton}
+            style={[styles.footerButton, isOverdue && styles.overdueButton]}
           />
         )}
       </View>
@@ -275,6 +365,9 @@ const styles = StyleSheet.create({
   checkedOutBadge: {
     backgroundColor: 'rgba(255, 107, 107, 0.9)',
   },
+  overdueBadge: {
+    backgroundColor: 'rgba(220, 20, 60, 0.95)',
+  },
   statusText: {
     fontSize: 14,
     fontWeight: '600',
@@ -300,6 +393,78 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 24,
     paddingHorizontal: 16,
+  },
+  checkoutInfoContainer: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 24,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.light.primary,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  overdueCheckoutInfo: {
+    borderLeftColor: Colors.light.error,
+    backgroundColor: 'rgba(220, 20, 60, 0.05)',
+  },
+  checkoutInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  checkoutInfoTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginLeft: 8,
+    flex: 1,
+  },
+  overdueIcon: {
+    marginLeft: 8,
+  },
+  checkoutInfoContent: {
+    gap: 8,
+  },
+  checkoutInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  checkoutInfoLabel: {
+    fontSize: 14,
+    color: Colors.light.subtext,
+    fontWeight: '500',
+  },
+  checkoutInfoValue: {
+    fontSize: 14,
+    color: Colors.light.text,
+    fontWeight: '600',
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: 12,
+  },
+  overdueText: {
+    color: Colors.light.error,
+  },
+  overdueWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(220, 20, 60, 0.1)',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  overdueWarningText: {
+    fontSize: 14,
+    color: Colors.light.error,
+    fontWeight: '500',
+    marginLeft: 8,
+    flex: 1,
   },
   detailsContainer: {
     backgroundColor: Colors.light.card,
@@ -385,5 +550,8 @@ const styles = StyleSheet.create({
   },
   footerButton: {
     width: '100%',
+  },
+  overdueButton: {
+    backgroundColor: Colors.light.error,
   },
 });

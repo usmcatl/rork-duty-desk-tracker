@@ -17,6 +17,8 @@ interface EquipmentState {
   setEquipment: (equipment: Equipment[]) => void;
   setCheckoutRecords: (records: CheckoutRecord[]) => void;
   clearAllData: () => void;
+  getOverdueEquipment: () => Equipment[];
+  getActiveCheckoutForEquipment: (equipmentId: string) => CheckoutRecord | undefined;
 }
 
 // Sample data for the app
@@ -236,6 +238,30 @@ export const useEquipmentStore = create<EquipmentState>()(
           equipment: [],
           checkoutRecords: [],
         });
+      },
+      
+      getOverdueEquipment: () => {
+        const state = get();
+        const now = new Date();
+        
+        return state.equipment.filter(equipment => {
+          if (equipment.status !== 'checked-out') return false;
+          
+          const activeCheckout = state.checkoutRecords.find(
+            record => record.equipmentId === equipment.id && !record.returnDate
+          );
+          
+          return activeCheckout && 
+                 activeCheckout.expectedReturnDate && 
+                 new Date(activeCheckout.expectedReturnDate) < now;
+        });
+      },
+      
+      getActiveCheckoutForEquipment: (equipmentId) => {
+        const state = get();
+        return state.checkoutRecords.find(
+          record => record.equipmentId === equipmentId && !record.returnDate
+        );
       },
     }),
     {
