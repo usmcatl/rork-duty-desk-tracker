@@ -112,6 +112,12 @@ export default function ReturnScreen() {
   const handleRenewalCancel = () => {
     setShowRenewalDialog(false);
   };
+
+  const handleReturnFromDialog = () => {
+    setShowRenewalDialog(false);
+    // Process the return immediately
+    processReturn();
+  };
   
   const handleReturn = () => {
     // If deposit is not being returned, require a reason
@@ -215,7 +221,7 @@ Deposit not returned reason: ${returnReason.trim()}`;
             <View style={styles.modalButtons}>
               <Button
                 title="Return Equipment"
-                onPress={handleRenewalCancel}
+                onPress={handleReturnFromDialog}
                 style={[styles.modalButton, styles.cancelButton]}
                 textStyle={styles.cancelButtonText}
                 icon={<ArrowLeft size={18} color={Colors.light.subtext} />}
