@@ -16,7 +16,7 @@ import { useEquipmentStore } from '@/store/equipmentStore';
 import { useMemberStore } from '@/store/memberStore';
 import Button from '@/components/Button';
 import Dropdown from '@/components/Dropdown';
-import { FileText, CheckCircle, DollarSign, AlertCircle, User, Shield, RefreshCw, ArrowLeft } from 'lucide-react-native';
+import { FileText, CheckCircle, DollarSign, AlertCircle, User, Shield, RefreshCw, ArrowLeft, Eye } from 'lucide-react-native';
 
 export default function ReturnScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -31,6 +31,7 @@ export default function ReturnScreen() {
   const [returnReason, setReturnReason] = useState('');
   const [collectedBy, setCollectedBy] = useState('');
   const [showRenewalDialog, setShowRenewalDialog] = useState(false);
+  const [equipmentInspected, setEquipmentInspected] = useState(false);
   
   // Get duty officers from settings
   const dutyOfficers = getDutyOfficers();
@@ -88,15 +89,24 @@ export default function ReturnScreen() {
   
   const handleRenewalDialogOpen = () => {
     setShowRenewalDialog(true);
+    setEquipmentInspected(false); // Reset inspection checkbox
   };
   
   const handleRenewalConfirm = () => {
-    const success = renewEquipmentLease(id, 'Lease renewed via return screen');
+    if (!equipmentInspected) {
+      Alert.alert(
+        "Inspection Required",
+        "Please confirm that the equipment has been inspected before renewing the lease."
+      );
+      return;
+    }
+    
+    const success = renewEquipmentLease(id, 'Lease renewed via return screen - Equipment inspected and approved for continued use');
     if (success) {
       setShowRenewalDialog(false);
       Alert.alert(
         "Lease Renewed",
-        "Equipment lease has been extended by 60 days.",
+        "Equipment lease has been extended by 60 days. The equipment has been marked as inspected.",
         [
           {
             text: "OK",
@@ -111,10 +121,12 @@ export default function ReturnScreen() {
   
   const handleRenewalCancel = () => {
     setShowRenewalDialog(false);
+    setEquipmentInspected(false);
   };
 
   const handleReturnFromDialog = () => {
     setShowRenewalDialog(false);
+    setEquipmentInspected(false);
     // Process the return immediately
     processReturn();
   };
@@ -218,6 +230,32 @@ Deposit not returned reason: ${returnReason.trim()}`;
               Would you like to renew the equipment lease for another 60 days instead of returning it?
             </Text>
             
+            {/* Equipment Inspection Acknowledgment */}
+            <View style={styles.inspectionContainer}>
+              <View style={styles.inspectionHeader}>
+                <Eye size={20} color={Colors.light.primary} />
+                <Text style={styles.inspectionTitle}>Equipment Inspection</Text>
+              </View>
+              
+              <View style={styles.inspectionToggleContainer}>
+                <Text style={styles.inspectionToggleLabel}>
+                  I confirm that the equipment has been inspected and is in good working condition
+                </Text>
+                <Switch
+                  value={equipmentInspected}
+                  onValueChange={setEquipmentInspected}
+                  trackColor={{ false: Colors.light.border, true: Colors.light.primary }}
+                  thumbColor="#fff"
+                />
+              </View>
+              
+              {!equipmentInspected && (
+                <Text style={styles.inspectionWarning}>
+                  Equipment inspection is required before renewing the lease
+                </Text>
+              )}
+            </View>
+            
             <View style={styles.modalButtons}>
               <Button
                 title="Return Equipment"
@@ -229,8 +267,13 @@ Deposit not returned reason: ${returnReason.trim()}`;
               <Button
                 title="Renew Lease"
                 onPress={handleRenewalConfirm}
-                style={[styles.modalButton, styles.confirmButton]}
+                style={[
+                  styles.modalButton, 
+                  styles.confirmButton,
+                  !equipmentInspected && styles.disabledButton
+                ]}
                 icon={<RefreshCw size={18} color="#fff" />}
+                disabled={!equipmentInspected}
               />
             </View>
           </View>
@@ -687,7 +730,43 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.light.text,
     lineHeight: 24,
+    marginBottom: 20,
+  },
+  inspectionContainer: {
+    backgroundColor: Colors.light.secondary,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 24,
+  },
+  inspectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  inspectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.light.primary,
+    marginLeft: 8,
+  },
+  inspectionToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  inspectionToggleLabel: {
+    fontSize: 14,
+    color: Colors.light.text,
+    flex: 1,
+    marginRight: 12,
+    lineHeight: 20,
+  },
+  inspectionWarning: {
+    fontSize: 12,
+    color: Colors.light.error,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
   modalButtons: {
     flexDirection: 'row',
@@ -706,5 +785,9 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     backgroundColor: Colors.light.primary,
+  },
+  disabledButton: {
+    backgroundColor: Colors.light.border,
+    opacity: 0.6,
   },
 });
