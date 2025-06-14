@@ -19,7 +19,8 @@ export default function DashboardScreen() {
   const [showMemberSearch, setShowMemberSearch] = useState(false);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [showOverdueDialog, setShowOverdueDialog] = useState(false);
-  const [lastOverdueCheck, setLastOverdueCheck] = useState<Date | null>(null);
+  const [lastOverdueCheck10am, setLastOverdueCheck10am] = useState<Date | null>(null);
+  const [lastOverdueCheck1pm, setLastOverdueCheck1pm] = useState<Date | null>(null);
   
   const availableEquipment = equipment.filter(item => item.status === 'available');
   const checkedOutEquipment = equipment.filter(item => item.status === 'checked-out');
@@ -59,16 +60,33 @@ export default function DashboardScreen() {
     .filter(pkg => new Date(pkg.arrivalDate) > sevenDaysAgo)
     .sort((a, b) => new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime());
   
-  // Check for overdue equipment every 4 hours
+  // Check for overdue equipment at 10am and 1pm
   useEffect(() => {
     const checkOverdueEquipment = () => {
       const now = new Date();
+      const currentHour = now.getHours();
+      const currentDate = now.toDateString();
       
-      // Check if we should show the dialog (every 4 hours)
-      if (!lastOverdueCheck || (now.getTime() - lastOverdueCheck.getTime()) >= 4 * 60 * 60 * 1000) {
-        if (overdueEquipment.length > 0) {
+      // Check if we have overdue equipment
+      if (overdueEquipment.length === 0) return;
+      
+      // Check for 10am (between 10:00 and 10:59)
+      if (currentHour === 10) {
+        const lastCheck10amDate = lastOverdueCheck10am?.toDateString();
+        if (lastCheck10amDate !== currentDate) {
           setShowOverdueDialog(true);
-          setLastOverdueCheck(now);
+          setLastOverdueCheck10am(now);
+          return;
+        }
+      }
+      
+      // Check for 1pm (between 13:00 and 13:59)
+      if (currentHour === 13) {
+        const lastCheck1pmDate = lastOverdueCheck1pm?.toDateString();
+        if (lastCheck1pmDate !== currentDate) {
+          setShowOverdueDialog(true);
+          setLastOverdueCheck1pm(now);
+          return;
         }
       }
     };
@@ -76,11 +94,11 @@ export default function DashboardScreen() {
     // Check immediately
     checkOverdueEquipment();
     
-    // Set up interval to check every hour
-    const interval = setInterval(checkOverdueEquipment, 60 * 60 * 1000);
+    // Set up interval to check every 15 minutes
+    const interval = setInterval(checkOverdueEquipment, 15 * 60 * 1000);
     
     return () => clearInterval(interval);
-  }, [overdueEquipment.length, lastOverdueCheck]);
+  }, [overdueEquipment.length, lastOverdueCheck10am, lastOverdueCheck1pm]);
   
   // Filter members based on search
   const filteredMembers = members.filter(member => {
