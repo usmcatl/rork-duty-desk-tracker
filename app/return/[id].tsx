@@ -143,7 +143,11 @@ Deposit not returned reason: ${returnReason.trim()}`;
       return 'Unknown Date';
     }
     try {
-      return new Date(activeCheckout.expectedReturnDate).toLocaleDateString();
+      // Fix: Ensure we have a valid date before creating new Date
+      const returnDate = activeCheckout.expectedReturnDate instanceof Date 
+        ? activeCheckout.expectedReturnDate 
+        : new Date(activeCheckout.expectedReturnDate);
+      return returnDate.toLocaleDateString();
     } catch (error) {
       return 'Invalid Date';
     }

@@ -28,9 +28,9 @@ export default function CheckoutScreen() {
   const item = equipment.find(e => e.id === id);
   const dutyOfficers = getDutyOfficers();
   
-  // Set default expected return date to 7 days from now
+  // Set default expected return date to 60 days from now (updated from 7 days)
   const defaultReturnDate = new Date();
-  defaultReturnDate.setDate(defaultReturnDate.getDate() + 7);
+  defaultReturnDate.setDate(defaultReturnDate.getDate() + 60);
   defaultReturnDate.setHours(23, 59, 59, 0);
   
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -95,6 +95,13 @@ export default function CheckoutScreen() {
       return;
     }
     
+    // Check if checkout period exceeds 180 days
+    const checkoutDays = Math.ceil((expectedReturnDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+    if (checkoutDays > 180) {
+      Alert.alert("Error", "Equipment cannot be checked out for more than 180 days. Please select an earlier return date.");
+      return;
+    }
+    
     if (!depositCollected && item.depositAmount) {
       Alert.alert(
         "Missing Deposit",
@@ -143,6 +150,13 @@ export default function CheckoutScreen() {
     nextWeek.setDate(nextWeek.getDate() + 7);
     nextWeek.setHours(23, 59, 59, 0);
     setExpectedReturnDate(nextWeek);
+  };
+  
+  const handleSet60Days = () => {
+    const sixtyDays = new Date();
+    sixtyDays.setDate(sixtyDays.getDate() + 60);
+    sixtyDays.setHours(23, 59, 59, 0);
+    setExpectedReturnDate(sixtyDays);
   };
   
   const formatDate = (date: Date) => {
@@ -318,24 +332,15 @@ export default function CheckoutScreen() {
             
             <TouchableOpacity 
               style={styles.dateOption}
-              onPress={() => {
-                // Open date picker or calendar modal
-                // For this implementation, we'll just use a custom date
-                const customDate = new Date();
-                customDate.setDate(customDate.getDate() + 14); // Two weeks
-                customDate.setHours(23, 59, 59, 0);
-                setExpectedReturnDate(customDate);
-              }}
+              onPress={handleSet60Days}
             >
               <Text style={[
                 styles.dateOptionText,
-                !(new Date(expectedReturnDate).toDateString() === 
-                new Date(new Date().setDate(new Date().getDate() + 1)).toDateString() ||
                 new Date(expectedReturnDate).toDateString() === 
-                new Date(new Date().setDate(new Date().getDate() + 7)).toDateString()) && 
+                new Date(new Date().setDate(new Date().getDate() + 60)).toDateString() && 
                 styles.selectedDateOption
               ]}>
-                Custom Date
+                60 Days (Standard)
               </Text>
             </TouchableOpacity>
           </View>
@@ -357,6 +362,10 @@ export default function CheckoutScreen() {
               </Text>
             </View>
           </TouchableOpacity>
+          
+          <Text style={styles.dateHelp}>
+            Standard checkout period is 60 days. Maximum allowed is 180 days.
+          </Text>
         </View>
         
         <View style={styles.depositContainer}>
@@ -484,10 +493,12 @@ const styles = StyleSheet.create({
   },
   dateOptions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     marginBottom: 12,
   },
   dateOption: {
-    marginRight: 12,
+    marginRight: 8,
+    marginBottom: 8,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
@@ -521,6 +532,12 @@ const styles = StyleSheet.create({
   selectedDateText: {
     fontSize: 16,
     color: Colors.light.text,
+  },
+  dateHelp: {
+    fontSize: 12,
+    color: Colors.light.subtext,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   depositContainer: {
     backgroundColor: Colors.light.secondary,
