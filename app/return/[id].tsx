@@ -7,7 +7,8 @@ import {
   TextInput, 
   Alert,
   Platform,
-  Switch
+  Switch,
+  Modal
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import Colors from '@/constants/colors';
@@ -15,12 +16,12 @@ import { useEquipmentStore } from '@/store/equipmentStore';
 import { useMemberStore } from '@/store/memberStore';
 import Button from '@/components/Button';
 import Dropdown from '@/components/Dropdown';
-import { FileText, CheckCircle, DollarSign, AlertCircle, User, Shield } from 'lucide-react-native';
+import { FileText, CheckCircle, DollarSign, AlertCircle, User, Shield, RefreshCw, ArrowLeft } from 'lucide-react-native';
 
 export default function ReturnScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { equipment, checkoutRecords, returnEquipment, getDutyOfficers } = useEquipmentStore();
+  const { equipment, checkoutRecords, returnEquipment, renewEquipmentLease, getDutyOfficers } = useEquipmentStore();
   const { getMemberById } = useMemberStore();
   
   const item = equipment.find(e => e.id === id);
@@ -29,6 +30,7 @@ export default function ReturnScreen() {
   const [depositReturned, setDepositReturned] = useState(true);
   const [returnReason, setReturnReason] = useState('');
   const [collectedBy, setCollectedBy] = useState('');
+  const [showRenewalDialog, setShowRenewalDialog] = useState(false);
   
   // Get duty officers from settings
   const dutyOfficers = getDutyOfficers();
@@ -83,6 +85,33 @@ export default function ReturnScreen() {
   // Calculate refund amount (75% of original deposit)
   const originalDeposit = activeCheckout.depositCollected || 0;
   const refundAmount = originalDeposit * 0.75;
+  
+  const handleRenewalDialogOpen = () => {
+    setShowRenewalDialog(true);
+  };
+  
+  const handleRenewalConfirm = () => {
+    const success = renewEquipmentLease(id, 'Lease renewed via return screen');
+    if (success) {
+      setShowRenewalDialog(false);
+      Alert.alert(
+        "Lease Renewed",
+        "Equipment lease has been extended by 60 days.",
+        [
+          {
+            text: "OK",
+            onPress: () => router.back()
+          }
+        ]
+      );
+    } else {
+      Alert.alert("Error", "Failed to renew equipment lease");
+    }
+  };
+  
+  const handleRenewalCancel = () => {
+    setShowRenewalDialog(false);
+  };
   
   const handleReturn = () => {
     // If deposit is not being returned, require a reason
@@ -164,6 +193,43 @@ Deposit not returned reason: ${returnReason.trim()}`;
           headerTintColor: Colors.light.primary,
         }} 
       />
+      
+      {/* Renewal Dialog Modal */}
+      <Modal
+        visible={showRenewalDialog}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleRenewalCancel}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <RefreshCw size={24} color={Colors.light.primary} />
+              <Text style={styles.modalTitle}>Renew Equipment Lease?</Text>
+            </View>
+            
+            <Text style={styles.modalMessage}>
+              Would you like to renew the equipment lease for another 60 days instead of returning it?
+            </Text>
+            
+            <View style={styles.modalButtons}>
+              <Button
+                title="Return Equipment"
+                onPress={handleRenewalCancel}
+                style={[styles.modalButton, styles.cancelButton]}
+                textStyle={styles.cancelButtonText}
+                icon={<ArrowLeft size={18} color={Colors.light.subtext} />}
+              />
+              <Button
+                title="Renew Lease"
+                onPress={handleRenewalConfirm}
+                style={[styles.modalButton, styles.confirmButton]}
+                icon={<RefreshCw size={18} color="#fff" />}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
       
       <ScrollView 
         style={styles.scrollView}
@@ -322,8 +388,8 @@ Deposit not returned reason: ${returnReason.trim()}`;
         </View>
         
         <Button
-          title="Confirm Return"
-          onPress={handleReturn}
+          title="Return Equipment"
+          onPress={handleRenewalDialogOpen}
           style={styles.returnButton}
           icon={<CheckCircle size={20} color="#fff" />}
         />
@@ -577,5 +643,62 @@ const styles = StyleSheet.create({
   },
   button: {
     alignSelf: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginLeft: 12,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: Colors.light.text,
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+  },
+  cancelButton: {
+    backgroundColor: Colors.light.card,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  cancelButtonText: {
+    color: Colors.light.subtext,
+  },
+  confirmButton: {
+    backgroundColor: Colors.light.primary,
   },
 });

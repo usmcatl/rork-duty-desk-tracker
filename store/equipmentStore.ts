@@ -12,6 +12,7 @@ interface EquipmentState {
   removeEquipment: (id: string) => void;
   checkoutEquipment: (checkoutRecord: Omit<CheckoutRecord, 'id' | 'checkoutDate'>) => void;
   returnEquipment: (equipmentId: string, returnNotes?: string, depositReturned?: boolean, collectedBy?: string) => void;
+  renewEquipmentLease: (equipmentId: string, renewalNotes?: string) => boolean;
   getDutyOfficers: () => string[];
   setDutyOfficers: (officers: string[]) => void;
   setEquipment: (equipment: Equipment[]) => void;
@@ -216,6 +217,43 @@ export const useEquipmentStore = create<EquipmentState>()(
           equipment: updatedEquipment,
         };
       }),
+      
+      renewEquipmentLease: (equipmentId, renewalNotes) => {
+        const state = get();
+        
+        // Find the active checkout record for this equipment
+        const activeCheckoutIndex = state.checkoutRecords.findIndex(
+          (record) => record.equipmentId === equipmentId && !record.returnDate
+        );
+        
+        if (activeCheckoutIndex === -1) return false;
+        
+        const activeCheckout = state.checkoutRecords[activeCheckoutIndex];
+        
+        // Calculate new return date (60 days from current expected return date or today, whichever is later)
+        const currentExpectedReturn = activeCheckout.expectedReturnDate ? new Date(activeCheckout.expectedReturnDate) : new Date();
+        const today = new Date();
+        const baseDate = currentExpectedReturn > today ? currentExpectedReturn : today;
+        const newReturnDate = new Date(baseDate);
+        newReturnDate.setDate(newReturnDate.getDate() + 60);
+        
+        // Update the checkout record with renewal information
+        const updatedCheckoutRecords = [...state.checkoutRecords];
+        const existingNotes = updatedCheckoutRecords[activeCheckoutIndex].checkoutNotes || '';
+        const renewalNote = `Lease renewed on ${new Date().toLocaleDateString()} for 60 days.${renewalNotes ? ` ${renewalNotes}` : ''}`;
+        
+        updatedCheckoutRecords[activeCheckoutIndex] = {
+          ...updatedCheckoutRecords[activeCheckoutIndex],
+          expectedReturnDate: newReturnDate,
+          checkoutNotes: existingNotes ? `${existingNotes}\n\n${renewalNote}` : renewalNote,
+        };
+        
+        set({
+          checkoutRecords: updatedCheckoutRecords,
+        });
+        
+        return true;
+      },
       
       getDutyOfficers: () => {
         return get().dutyOfficers;
