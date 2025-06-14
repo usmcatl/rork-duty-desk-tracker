@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Alert, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
 import { useEquipmentStore } from '@/store/equipmentStore';
@@ -7,7 +7,8 @@ import { usePackageStore } from '@/store/packageStore';
 import { useMemberStore } from '@/store/memberStore';
 import EquipmentNameplate from '@/components/EquipmentNameplate';
 import PackageCard from '@/components/PackageCard';
-import { Plus, Package, CheckSquare, Search, User, Users, ChevronRight, X, Package2, Clock, UserPlus, Settings } from 'lucide-react-native';
+import Button from '@/components/Button';
+import { Plus, Package, CheckSquare, Search, User, Users, ChevronRight, X, Package2, Clock, UserPlus, Settings, AlertTriangle, Calendar } from 'lucide-react-native';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -17,6 +18,8 @@ export default function DashboardScreen() {
   
   const [showMemberSearch, setShowMemberSearch] = useState(false);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [showOverdueDialog, setShowOverdueDialog] = useState(false);
+  const [lastOverdueCheck, setLastOverdueCheck] = useState<Date | null>(null);
   
   const availableEquipment = equipment.filter(item => item.status === 'available');
   const checkedOutEquipment = equipment.filter(item => item.status === 'checked-out');
@@ -25,6 +28,23 @@ export default function DashboardScreen() {
   
   // Get overdue equipment
   const overdueEquipment = getOverdueEquipment();
+  
+  // Get equipment due in 10 days
+  const tenDaysFromNow = new Date();
+  tenDaysFromNow.setDate(tenDaysFromNow.getDate() + 10);
+  
+  const equipmentDueSoon = checkoutRecords
+    .filter(record => {
+      if (record.returnDate) return false; // Already returned
+      if (!record.expectedReturnDate) return false;
+      
+      const returnDate = new Date(record.expectedReturnDate);
+      const now = new Date();
+      const daysUntilDue = Math.ceil((returnDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      return daysUntilDue <= 10 && daysUntilDue > 0;
+    })
+    .sort((a, b) => new Date(a.expectedReturnDate!).getTime() - new Date(b.expectedReturnDate!).getTime());
   
   // Get recent checkouts (last 7 days)
   const sevenDaysAgo = new Date();
@@ -38,6 +58,29 @@ export default function DashboardScreen() {
   const recentPackages = packages
     .filter(pkg => new Date(pkg.arrivalDate) > sevenDaysAgo)
     .sort((a, b) => new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime());
+  
+  // Check for overdue equipment every 4 hours
+  useEffect(() => {
+    const checkOverdueEquipment = () => {
+      const now = new Date();
+      
+      // Check if we should show the dialog (every 4 hours)
+      if (!lastOverdueCheck || (now.getTime() - lastOverdueCheck.getTime()) >= 4 * 60 * 60 * 1000) {
+        if (overdueEquipment.length > 0) {
+          setShowOverdueDialog(true);
+          setLastOverdueCheck(now);
+        }
+      }
+    };
+    
+    // Check immediately
+    checkOverdueEquipment();
+    
+    // Set up interval to check every hour
+    const interval = setInterval(checkOverdueEquipment, 60 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [overdueEquipment.length, lastOverdueCheck]);
   
   // Filter members based on search
   const filteredMembers = members.filter(member => {
@@ -80,8 +123,74 @@ export default function DashboardScreen() {
     return display;
   };
   
+  const handleOverdueDialogClose = () => {
+    setShowOverdueDialog(false);
+  };
+  
+  const handleViewOverdueEquipment = () => {
+    setShowOverdueDialog(false);
+    router.push('/equipment');
+  };
+  
   return (
     <View style={styles.container}>
+      {/* Overdue Equipment Dialog */}
+      <Modal
+        visible={showOverdueDialog}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleOverdueDialogClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <AlertTriangle size={24} color={Colors.light.error} />
+              <Text style={styles.modalTitle}>Overdue Equipment Alert</Text>
+            </View>
+            
+            <Text style={styles.modalMessage}>
+              {overdueEquipment.length} piece{overdueEquipment.length !== 1 ? 's' : ''} of equipment {overdueEquipment.length !== 1 ? 'are' : 'is'} overdue for return. Please follow up with the borrowers.
+            </Text>
+            
+            <View style={styles.overdueList}>
+              {overdueEquipment.slice(0, 3).map(item => {
+                const checkout = checkoutRecords.find(r => r.equipmentId === item.id && !r.returnDate);
+                const member = checkout ? getMemberById(checkout.memberId) : null;
+                const daysOverdue = checkout ? Math.ceil((new Date().getTime() - new Date(checkout.expectedReturnDate!).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                
+                return (
+                  <View key={item.id} style={styles.overdueItem}>
+                    <Text style={styles.overdueItemName}>{item.name}</Text>
+                    <Text style={styles.overdueItemDetails}>
+                      {member ? formatMemberDisplay(member) : 'Unknown'} • {daysOverdue} days overdue
+                    </Text>
+                  </View>
+                );
+              })}
+              {overdueEquipment.length > 3 && (
+                <Text style={styles.overdueMoreText}>
+                  +{overdueEquipment.length - 3} more overdue items
+                </Text>
+              )}
+            </View>
+            
+            <View style={styles.modalButtons}>
+              <Button
+                title="Dismiss"
+                onPress={handleOverdueDialogClose}
+                variant="outline"
+                style={styles.modalButton}
+              />
+              <Button
+                title="View Equipment"
+                onPress={handleViewOverdueEquipment}
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+      
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.content}
@@ -117,6 +226,45 @@ export default function DashboardScreen() {
         {/* Recent Activity Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent Activity</Text>
+          
+          {/* Equipment Due Soon Notifications */}
+          {equipmentDueSoon.length > 0 && (
+            <View style={styles.dueSoonContainer}>
+              <View style={styles.dueSoonHeader}>
+                <Calendar size={20} color={Colors.light.flagRed} />
+                <Text style={styles.dueSoonTitle}>Equipment Due Soon</Text>
+              </View>
+              
+              {equipmentDueSoon.slice(0, 2).map(record => {
+                const item = equipment.find(e => e.id === record.equipmentId);
+                const member = getMemberById(record.memberId);
+                const daysUntilDue = Math.ceil((new Date(record.expectedReturnDate!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                
+                if (!item) return null;
+                
+                return (
+                  <TouchableOpacity 
+                    key={record.id}
+                    style={styles.dueSoonItem}
+                    onPress={() => router.push(`/equipment/${item.id}`)}
+                  >
+                    <View style={styles.dueSoonIcon}>
+                      <Clock size={16} color={Colors.light.flagRed} />
+                    </View>
+                    
+                    <View style={styles.dueSoonContent}>
+                      <Text style={styles.dueSoonItemName}>
+                        {item.name}
+                      </Text>
+                      <Text style={styles.dueSoonItemMeta}>
+                        {member ? formatMemberDisplay(member) : 'Unknown Member'} • Due in {daysUntilDue} day{daysUntilDue !== 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
           
           {(recentCheckouts.length > 0 || recentPackages.length > 0) ? (
             <>
@@ -452,6 +600,55 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     marginBottom: 12,
   },
+  dueSoonContainer: {
+    backgroundColor: 'rgba(220, 20, 60, 0.05)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.light.flagRed,
+  },
+  dueSoonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  dueSoonTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.light.flagRed,
+    marginLeft: 8,
+  },
+  dueSoonItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.light.background,
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+  dueSoonIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(220, 20, 60, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  dueSoonContent: {
+    flex: 1,
+  },
+  dueSoonItemName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.light.text,
+    marginBottom: 2,
+  },
+  dueSoonItemMeta: {
+    fontSize: 12,
+    color: Colors.light.subtext,
+  },
   activityItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -676,5 +873,77 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: Colors.light.flagRed,
     shadowColor: Colors.light.shadow,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginLeft: 12,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: Colors.light.text,
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  overdueList: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+  },
+  overdueItem: {
+    marginBottom: 8,
+  },
+  overdueItemName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginBottom: 2,
+  },
+  overdueItemDetails: {
+    fontSize: 12,
+    color: Colors.light.subtext,
+  },
+  overdueMoreText: {
+    fontSize: 12,
+    color: Colors.light.subtext,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
   },
 });
