@@ -267,8 +267,8 @@ export default function TabletChangeoverScreen() {
           <Dropdown
             label="Select Duty Officer"
             value={incomingOfficer}
-            onValueChange={setIncomingOfficer}
-            items={dutyOfficers.map(officer => ({ label: officer, value: officer }))}
+            onSelect={setIncomingOfficer}
+            options={dutyOfficers}
             placeholder="Choose the incoming duty officer"
           />
         </View>

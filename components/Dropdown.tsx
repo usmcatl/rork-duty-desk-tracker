@@ -18,6 +18,7 @@ interface DropdownProps {
   placeholder: string;
   allowEmpty?: boolean;
   emptyLabel?: string;
+  label?: string;
 }
 
 export default function Dropdown({ 
@@ -26,7 +27,8 @@ export default function Dropdown({
   onSelect, 
   placeholder, 
   allowEmpty = false,
-  emptyLabel = "None"
+  emptyLabel = "None",
+  label
 }: DropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -40,6 +42,9 @@ export default function Dropdown({
 
   return (
     <View style={styles.container}>
+      {label && (
+        <Text style={styles.label}>{label}</Text>
+      )}
       <TouchableOpacity 
         style={styles.selector}
         onPress={() => setIsOpen(true)}
@@ -94,6 +99,12 @@ export default function Dropdown({
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.light.text,
+    marginBottom: 8,
   },
   selector: {
     backgroundColor: Colors.light.card,
