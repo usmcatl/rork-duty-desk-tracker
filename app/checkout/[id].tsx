@@ -9,7 +9,8 @@ import {
   Alert,
   Platform,
   Switch,
-  FlatList
+  FlatList,
+  Modal
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import Colors from '@/constants/colors';
@@ -17,7 +18,7 @@ import { useEquipmentStore } from '@/store/equipmentStore';
 import { useMemberStore } from '@/store/memberStore';
 import Button from '@/components/Button';
 import Dropdown from '@/components/Dropdown';
-import { Calendar, User, Phone, FileText, DollarSign, Search, ChevronRight } from 'lucide-react-native';
+import { Calendar, User, Phone, FileText, DollarSign, Search, ChevronRight, AlertTriangle } from 'lucide-react-native';
 
 export default function CheckoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -36,6 +37,7 @@ export default function CheckoutScreen() {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMemberSearch, setShowMemberSearch] = useState(false);
+  const [showAdvisoryDialog, setShowAdvisoryDialog] = useState(false);
   const [notes, setNotes] = useState('');
   const [expectedReturnDate, setExpectedReturnDate] = useState<Date>(defaultReturnDate);
   const [selectedOfficer, setSelectedOfficer] = useState(dutyOfficers[0] || '');
@@ -173,9 +175,8 @@ export default function CheckoutScreen() {
     setShowMemberSearch(false);
   };
   
-  const handleAddNewMember = () => {
-    // Navigate to add member screen
-    router.push('/add-member');
+  const handleAddNewMemberAttempt = () => {
+    setShowAdvisoryDialog(true);
   };
   
   return (
@@ -189,6 +190,35 @@ export default function CheckoutScreen() {
           headerTintColor: Colors.light.primary,
         }} 
       />
+      
+      {/* Advisory Dialog */}
+      <Modal
+        visible={showAdvisoryDialog}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowAdvisoryDialog(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <AlertTriangle size={24} color={Colors.light.flagRed} />
+              <Text style={styles.modalTitle}>Feature Pending Department Advisory</Text>
+            </View>
+            
+            <Text style={styles.modalMessage}>
+              Member management features are currently pending department advisory approval.
+            </Text>
+            
+            <View style={styles.modalButtons}>
+              <Button
+                title="Understood"
+                onPress={() => setShowAdvisoryDialog(false)}
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
       
       <ScrollView 
         style={styles.scrollView}
@@ -273,7 +303,10 @@ export default function CheckoutScreen() {
               ListEmptyComponent={
                 <View style={styles.emptyMembersList}>
                   <Text style={styles.emptyMembersText}>
-                    No members found. Try a different search or add a new member.
+                    No members found. Try a different search.
+                  </Text>
+                  <Text style={styles.emptyMembersSubtext}>
+                    Member creation is pending department advisory.
                   </Text>
                 </View>
               }
@@ -288,8 +321,9 @@ export default function CheckoutScreen() {
               />
               <Button
                 title="Add New Member"
-                onPress={handleAddNewMember}
-                style={styles.memberSearchButton}
+                onPress={handleAddNewMemberAttempt}
+                style={[styles.memberSearchButton, styles.disabledButton]}
+                disabled={true}
               />
             </View>
           </View>
@@ -698,6 +732,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.light.subtext,
     textAlign: 'center',
+    marginBottom: 4,
+  },
+  emptyMembersSubtext: {
+    fontSize: 12,
+    color: Colors.light.error,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   memberSearchActions: {
     flexDirection: 'row',
@@ -707,5 +748,54 @@ const styles = StyleSheet.create({
   memberSearchButton: {
     flex: 1,
     marginHorizontal: 4,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginLeft: 12,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: Colors.light.text,
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  modalButton: {
+    minWidth: 100,
   },
 });

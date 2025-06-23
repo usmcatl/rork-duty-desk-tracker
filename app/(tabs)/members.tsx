@@ -6,19 +6,22 @@ import {
   ScrollView, 
   TouchableOpacity, 
   TextInput,
-  Alert
+  Alert,
+  Modal
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
 import { useMemberStore } from '@/store/memberStore';
 import EmptyState from '@/components/EmptyState';
-import { Plus, Search, Filter, User, Phone, Calendar, ChevronRight, Users, Upload, Shield, Activity } from 'lucide-react-native';
+import Button from '@/components/Button';
+import { Plus, Search, Filter, User, Phone, Calendar, ChevronRight, Users, Upload, Shield, Activity, AlertTriangle } from 'lucide-react-native';
 
 export default function MembersScreen() {
   const router = useRouter();
   const { members } = useMemberStore();
   
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAdvisoryDialog, setShowAdvisoryDialog] = useState(false);
   
   // Filter members based on search
   const filteredMembers = members.filter(member => {
@@ -32,12 +35,12 @@ export default function MembersScreen() {
       member.group.toLowerCase().includes(searchQuery.toLowerCase());
   });
   
-  const handleAddMember = () => {
-    router.push('/add-member');
+  const handleAddMemberAttempt = () => {
+    setShowAdvisoryDialog(true);
   };
   
-  const handleImportMembers = () => {
-    router.push('/import-members');
+  const handleImportMembersAttempt = () => {
+    setShowAdvisoryDialog(true);
   };
   
   const handleMemberPress = (id: string) => {
@@ -54,18 +57,78 @@ export default function MembersScreen() {
   
   if (members.length === 0) {
     return (
-      <EmptyState
-        title="No Members Found"
-        description="Start by adding members to the database or import an existing list."
-        actionLabel="Add Member"
-        onAction={handleAddMember}
-        icon={<Users size={48} color={Colors.light.primary} />}
-      />
+      <View style={styles.container}>
+        {/* Advisory Dialog */}
+        <Modal
+          visible={showAdvisoryDialog}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowAdvisoryDialog(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <AlertTriangle size={24} color={Colors.light.flagRed} />
+                <Text style={styles.modalTitle}>Feature Pending Department Advisory</Text>
+              </View>
+              
+              <Text style={styles.modalMessage}>
+                Member management features are currently pending department advisory approval.
+              </Text>
+              
+              <View style={styles.modalButtons}>
+                <Button
+                  title="Understood"
+                  onPress={() => setShowAdvisoryDialog(false)}
+                  style={styles.modalButton}
+                />
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <EmptyState
+          title="No Members Found"
+          description="Member database is currently empty. Member management features are pending department advisory."
+          actionLabel="Understood"
+          onAction={() => {}}
+          icon={<Users size={48} color={Colors.light.primary} />}
+        />
+      </View>
     );
   }
   
   return (
     <View style={styles.container}>
+      {/* Advisory Dialog */}
+      <Modal
+        visible={showAdvisoryDialog}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowAdvisoryDialog(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <AlertTriangle size={24} color={Colors.light.flagRed} />
+              <Text style={styles.modalTitle}>Feature Pending Department Advisory</Text>
+            </View>
+            
+            <Text style={styles.modalMessage}>
+              Member management features are currently pending department advisory approval.
+            </Text>
+            
+            <View style={styles.modalButtons}>
+              <Button
+                title="Understood"
+                onPress={() => setShowAdvisoryDialog(false)}
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
           <Search size={20} color={Colors.light.subtext} style={styles.searchIcon} />
@@ -81,19 +144,19 @@ export default function MembersScreen() {
       
       <View style={styles.actionsContainer}>
         <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={handleAddMember}
+          style={[styles.actionButton, styles.disabledActionButton]}
+          onPress={handleAddMemberAttempt}
         >
-          <Plus size={16} color={Colors.light.primary} />
-          <Text style={styles.actionButtonText}>Add Member</Text>
+          <Plus size={16} color={Colors.light.subtext} />
+          <Text style={[styles.actionButtonText, styles.disabledActionButtonText]}>Add Member</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={handleImportMembers}
+          style={[styles.actionButton, styles.disabledActionButton]}
+          onPress={handleImportMembersAttempt}
         >
-          <Upload size={16} color={Colors.light.primary} />
-          <Text style={styles.actionButtonText}>Import</Text>
+          <Upload size={16} color={Colors.light.subtext} />
+          <Text style={[styles.actionButtonText, styles.disabledActionButtonText]}>Import</Text>
         </TouchableOpacity>
       </View>
       
@@ -172,10 +235,10 @@ export default function MembersScreen() {
       </ScrollView>
       
       <TouchableOpacity 
-        style={styles.fab}
-        onPress={handleAddMember}
+        style={[styles.fab, styles.disabledFab]}
+        onPress={handleAddMemberAttempt}
       >
-        <Plus size={24} color="#fff" />
+        <Plus size={24} color={Colors.light.subtext} />
       </TouchableOpacity>
     </View>
   );
@@ -222,10 +285,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginRight: 8,
   },
+  disabledActionButton: {
+    backgroundColor: Colors.light.border,
+  },
   actionButtonText: {
     fontSize: 14,
     color: Colors.light.primary,
     marginLeft: 4,
+  },
+  disabledActionButtonText: {
+    color: Colors.light.subtext,
   },
   scrollView: {
     flex: 1,
@@ -313,5 +382,55 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+  },
+  disabledFab: {
+    backgroundColor: Colors.light.border,
+    shadowColor: Colors.light.shadow,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginLeft: 12,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: Colors.light.text,
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  modalButton: {
+    minWidth: 100,
   },
 });

@@ -8,7 +8,8 @@ import {
   TouchableOpacity, 
   Alert,
   Image,
-  Platform
+  Platform,
+  Modal
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import Colors from '@/constants/colors';
@@ -17,7 +18,7 @@ import { useMemberStore } from '@/store/memberStore';
 import { useEquipmentStore } from '@/store/equipmentStore';
 import Button from '@/components/Button';
 import Dropdown from '@/components/Dropdown';
-import { Camera, X, User, Plus, ChevronDown, Check } from 'lucide-react-native';
+import { Camera, X, User, Plus, ChevronDown, Check, AlertTriangle } from 'lucide-react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 
 type PhotoType = 'package' | 'label' | 'storage';
@@ -39,7 +40,7 @@ const STORAGE_LOCATIONS = ['Bar Storage', 'Package Cage'];
 export default function AddPackageScreen() {
   const router = useRouter();
   const { addPackage } = usePackageStore();
-  const { members, addMember, searchMembers } = useMemberStore();
+  const { members, searchMembers } = useMemberStore();
   const { getDutyOfficers } = useEquipmentStore();
   const [permission, requestPermission] = useCameraPermissions();
   
@@ -63,12 +64,8 @@ export default function AddPackageScreen() {
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [filteredMembers, setFilteredMembers] = useState(members);
   
-  // New member creation
-  const [showNewMemberForm, setShowNewMemberForm] = useState(false);
-  const [newMemberName, setNewMemberName] = useState('');
-  const [newMemberPhone, setNewMemberPhone] = useState('');
-  const [newMemberEmail, setNewMemberEmail] = useState('');
-  const [newMemberAliases, setNewMemberAliases] = useState('');
+  // Advisory dialog
+  const [showAdvisoryDialog, setShowAdvisoryDialog] = useState(false);
   
   // Get duty officers from settings
   const dutyOfficers = getDutyOfficers();
@@ -150,52 +147,8 @@ export default function AddPackageScreen() {
     setShowCamera(false);
   };
   
-  const handleCreateNewMember = () => {
-    if (!newMemberName.trim()) {
-      Alert.alert('Error', 'Please enter a member name.');
-      return;
-    }
-    
-    if (!newMemberEmail.trim()) {
-      Alert.alert('Error', 'Email is required for new members.');
-      return;
-    }
-    
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newMemberEmail.trim())) {
-      Alert.alert('Error', 'Please enter a valid email address.');
-      return;
-    }
-    
-    try {
-      const aliases = newMemberAliases.trim() 
-        ? newMemberAliases.split(',').map(alias => alias.trim()).filter(Boolean)
-        : undefined;
-      
-      const memberData = {
-        name: newMemberName.trim(),
-        memberId: `PKG${Date.now()}`,
-        joinDate: new Date(),
-        email: newMemberEmail.trim(),
-        status: 'Active' as const,
-        group: 'Legion' as const,
-        ...(newMemberPhone.trim() && { phone: newMemberPhone.trim() }),
-        ...(aliases && aliases.length > 0 && { aliases }),
-      };
-      
-      const memberId = addMember(memberData);
-      
-      setSelectedMemberId(memberId);
-      setRecipientName(newMemberName.trim());
-      setShowNewMemberForm(false);
-      setNewMemberName('');
-      setNewMemberPhone('');
-      setNewMemberEmail('');
-      setNewMemberAliases('');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to create member. Please try again.');
-    }
+  const handleCreateNewMemberAttempt = () => {
+    setShowAdvisoryDialog(true);
   };
   
   const handleSubmit = () => {
@@ -205,7 +158,7 @@ export default function AddPackageScreen() {
     }
     
     if (!selectedMemberId) {
-      Alert.alert('Error', 'Please select a member or create a new one.');
+      Alert.alert('Error', 'Please select a member from the existing list.');
       return;
     }
     
@@ -323,6 +276,35 @@ export default function AddPackageScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Add New Package' }} />
       
+      {/* Advisory Dialog */}
+      <Modal
+        visible={showAdvisoryDialog}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowAdvisoryDialog(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <AlertTriangle size={24} color={Colors.light.flagRed} />
+              <Text style={styles.modalTitle}>Feature Pending Department Advisory</Text>
+            </View>
+            
+            <Text style={styles.modalMessage}>
+              Member management features are currently pending department advisory approval.
+            </Text>
+            
+            <View style={styles.modalButtons}>
+              <Button
+                title="Understood"
+                onPress={() => setShowAdvisoryDialog(false)}
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+      
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.content}
@@ -363,77 +345,24 @@ export default function AddPackageScreen() {
                   </ScrollView>
                   
                   <TouchableOpacity
-                    style={styles.createMemberOption}
-                    onPress={() => {
-                      setNewMemberName(recipientName);
-                      setShowNewMemberForm(true);
-                      setShowMemberDropdown(false);
-                    }}
+                    style={[styles.createMemberOption, styles.disabledCreateMemberOption]}
+                    onPress={handleCreateNewMemberAttempt}
                   >
-                    <Plus size={16} color={Colors.light.primary} />
-                    <Text style={styles.createMemberText}>
-                      Create new member: "{recipientName}"
+                    <Plus size={16} color={Colors.light.subtext} />
+                    <Text style={[styles.createMemberText, styles.disabledCreateMemberText]}>
+                      Create new member: "{recipientName}" (Pending Advisory)
                     </Text>
                   </TouchableOpacity>
                 </View>
               )}
             </View>
+            
+            {!selectedMemberId && recipientName.trim() && (
+              <Text style={styles.memberWarning}>
+                Please select an existing member from the dropdown. New member creation is pending department advisory.
+              </Text>
+            )}
           </View>
-          
-          {showNewMemberForm && (
-            <View style={styles.newMemberForm}>
-              <Text style={styles.newMemberTitle}>Create New Member</Text>
-              
-              <TextInput
-                style={styles.input}
-                value={newMemberName}
-                onChangeText={setNewMemberName}
-                placeholder="Full name *"
-                placeholderTextColor={Colors.light.subtext}
-              />
-              
-              <TextInput
-                style={styles.input}
-                value={newMemberEmail}
-                onChangeText={setNewMemberEmail}
-                placeholder="Email address *"
-                placeholderTextColor={Colors.light.subtext}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              
-              <TextInput
-                style={styles.input}
-                value={newMemberAliases}
-                onChangeText={setNewMemberAliases}
-                placeholder="Aliases (comma separated, optional)"
-                placeholderTextColor={Colors.light.subtext}
-              />
-              
-              <TextInput
-                style={styles.input}
-                value={newMemberPhone}
-                onChangeText={setNewMemberPhone}
-                placeholder="Phone number (optional)"
-                placeholderTextColor={Colors.light.subtext}
-                keyboardType="phone-pad"
-              />
-              
-              <View style={styles.newMemberActions}>
-                <Button
-                  title="Cancel"
-                  onPress={() => setShowNewMemberForm(false)}
-                  variant="outline"
-                  style={styles.newMemberActionButton}
-                />
-                <Button
-                  title="Create"
-                  onPress={handleCreateNewMember}
-                  style={styles.newMemberActionButton}
-                />
-              </View>
-            </View>
-          )}
         </View>
         
         <View style={styles.section}>
@@ -650,34 +579,23 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: Colors.light.secondary,
   },
+  disabledCreateMemberOption: {
+    backgroundColor: Colors.light.border,
+  },
   createMemberText: {
     fontSize: 14,
     color: Colors.light.primary,
     fontWeight: '500',
     marginLeft: 8,
   },
-  newMemberForm: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    marginTop: 16,
+  disabledCreateMemberText: {
+    color: Colors.light.subtext,
   },
-  newMemberTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.light.text,
-    marginBottom: 16,
-  },
-  newMemberActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
-  },
-  newMemberActionButton: {
-    flex: 1,
-    marginHorizontal: 4,
+  memberWarning: {
+    fontSize: 12,
+    color: Colors.light.error,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   photoSection: {
     flexDirection: 'row',
@@ -778,5 +696,51 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     width: 80,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginLeft: 12,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: Colors.light.text,
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  modalButton: {
+    minWidth: 100,
   },
 });

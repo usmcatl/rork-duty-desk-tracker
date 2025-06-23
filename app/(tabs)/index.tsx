@@ -22,6 +22,7 @@ export default function DashboardScreen() {
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [showOverdueDialog, setShowOverdueDialog] = useState(false);
   const [showChangeoverPrompt, setShowChangeoverPrompt] = useState(false);
+  const [showAdvisoryDialog, setShowAdvisoryDialog] = useState(false);
   const [lastOverdueCheck10am, setLastOverdueCheck10am] = useState<Date | null>(null);
   const [lastOverdueCheck1pm, setLastOverdueCheck1pm] = useState<Date | null>(null);
   
@@ -139,8 +140,8 @@ export default function DashboardScreen() {
     router.push('/add-package');
   };
   
-  const handleAddMember = () => {
-    router.push('/add-member');
+  const handleAddMemberAttempt = () => {
+    setShowAdvisoryDialog(true);
   };
   
   const handleMemberPress = (id: string) => {
@@ -191,6 +192,35 @@ export default function DashboardScreen() {
   
   return (
     <View style={styles.container}>
+      {/* Advisory Dialog */}
+      <Modal
+        visible={showAdvisoryDialog}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowAdvisoryDialog(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <AlertTriangle size={24} color={Colors.light.flagRed} />
+              <Text style={styles.modalTitle}>Feature Pending Department Advisory</Text>
+            </View>
+            
+            <Text style={styles.modalMessage}>
+              Member management features are currently pending department advisory approval.
+            </Text>
+            
+            <View style={styles.modalButtons}>
+              <Button
+                title="Understood"
+                onPress={() => setShowAdvisoryDialog(false)}
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Shift Changeover Prompt */}
       <Modal
         visible={showChangeoverPrompt}
@@ -640,10 +670,10 @@ export default function DashboardScreen() {
       
       <View style={styles.fabContainer}>
         <TouchableOpacity 
-          style={[styles.fab, styles.tertiaryFab]}
-          onPress={handleAddMember}
+          style={[styles.fab, styles.tertiaryFab, styles.disabledFab]}
+          onPress={handleAddMemberAttempt}
         >
-          <UserPlus size={20} color="#fff" />
+          <UserPlus size={20} color={Colors.light.subtext} />
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -1052,6 +1082,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.flagRed,
     shadowColor: Colors.light.shadow,
   },
+  disabledFab: {
+    backgroundColor: Colors.light.border,
+    shadowColor: Colors.light.shadow,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1080,7 +1114,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
     color: Colors.light.text,
     marginLeft: 12,
@@ -1089,7 +1123,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.light.text,
     lineHeight: 24,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   currentShiftInfo: {
     backgroundColor: Colors.light.card,
