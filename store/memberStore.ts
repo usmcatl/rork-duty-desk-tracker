@@ -13,7 +13,7 @@ interface MemberState {
   addAssociation: (memberId: string, associatedMemberId: string) => void;
   removeAssociation: (memberId: string, associatedMemberId: string) => void;
   searchMembers: (query: string) => Member[];
-  importMembers: (members: Member[]) => void;
+  importMembers: (members: Omit<Member, 'id'>[]) => void;
   setMembers: (members: Member[]) => void;
   clearAllMembers: () => void;
 }
@@ -172,10 +172,11 @@ export const useMemberStore = create<MemberState>()(
           // Generate unique IDs for imported members and ensure required fields
           const membersWithIds = newMembers.map(member => ({
             ...member,
-            id: member.id || Date.now().toString() + Math.random().toString(36).substring(2, 9),
+            id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
             status: member.status || 'Active',
             group: member.group || 'Legion',
             email: member.email || 'no-email@example.com', // Ensure email is present
+            joinDate: member.joinDate || new Date(), // Ensure joinDate is present
           }));
           
           return {

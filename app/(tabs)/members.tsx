@@ -39,8 +39,8 @@ export default function MembersScreen() {
     setShowAdvisoryDialog(true);
   };
   
-  const handleImportMembersAttempt = () => {
-    setShowAdvisoryDialog(true);
+  const handleImportMembers = () => {
+    router.push('/import-members');
   };
   
   const handleMemberPress = (id: string) => {
@@ -73,13 +73,22 @@ export default function MembersScreen() {
               </View>
               
               <Text style={styles.modalMessage}>
-                Member management features are currently pending department advisory approval.
+                Manual member creation is currently pending department advisory approval. Please use CSV import to add new members.
               </Text>
               
               <View style={styles.modalButtons}>
                 <Button
-                  title="Understood"
+                  title="Use CSV Import"
+                  onPress={() => {
+                    setShowAdvisoryDialog(false);
+                    handleImportMembers();
+                  }}
+                  style={styles.modalButton}
+                />
+                <Button
+                  title="Cancel"
                   onPress={() => setShowAdvisoryDialog(false)}
+                  variant="outline"
                   style={styles.modalButton}
                 />
               </View>
@@ -89,9 +98,9 @@ export default function MembersScreen() {
 
         <EmptyState
           title="No Members Found"
-          description="Member database is currently empty. Member management features are pending department advisory."
-          actionLabel="Understood"
-          onAction={() => {}}
+          description="Member database is currently empty. Use CSV import to add members to the system."
+          actionLabel="Import Members"
+          onAction={handleImportMembers}
           icon={<Users size={48} color={Colors.light.primary} />}
         />
       </View>
@@ -115,13 +124,22 @@ export default function MembersScreen() {
             </View>
             
             <Text style={styles.modalMessage}>
-              Member management features are currently pending department advisory approval.
+              Manual member creation is currently pending department advisory approval. Please use CSV import to add new members.
             </Text>
             
             <View style={styles.modalButtons}>
               <Button
-                title="Understood"
+                title="Use CSV Import"
+                onPress={() => {
+                  setShowAdvisoryDialog(false);
+                  handleImportMembers();
+                }}
+                style={styles.modalButton}
+              />
+              <Button
+                title="Cancel"
                 onPress={() => setShowAdvisoryDialog(false)}
+                variant="outline"
                 style={styles.modalButton}
               />
             </View>
@@ -152,11 +170,11 @@ export default function MembersScreen() {
         </TouchableOpacity>
         
         <TouchableOpacity 
-          style={[styles.actionButton, styles.disabledActionButton]}
-          onPress={handleImportMembersAttempt}
+          style={styles.actionButton}
+          onPress={handleImportMembers}
         >
-          <Upload size={16} color={Colors.light.subtext} />
-          <Text style={[styles.actionButtonText, styles.disabledActionButtonText]}>Import</Text>
+          <Upload size={16} color={Colors.light.primary} />
+          <Text style={styles.actionButtonText}>Import CSV</Text>
         </TouchableOpacity>
       </View>
       
@@ -235,10 +253,10 @@ export default function MembersScreen() {
       </ScrollView>
       
       <TouchableOpacity 
-        style={[styles.fab, styles.disabledFab]}
-        onPress={handleAddMemberAttempt}
+        style={styles.fab}
+        onPress={handleImportMembers}
       >
-        <Plus size={24} color={Colors.light.subtext} />
+        <Upload size={24} color="#fff" />
       </TouchableOpacity>
     </View>
   );
@@ -383,10 +401,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  disabledFab: {
-    backgroundColor: Colors.light.border,
-    shadowColor: Colors.light.shadow,
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -432,5 +446,6 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     minWidth: 100,
+    marginLeft: 8,
   },
 });

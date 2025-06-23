@@ -191,47 +191,94 @@ export const parseFromCSV = (
 /**
  * Parses CSV data into members
  */
-export const parseMembersFromCSV = (csv: string): Member[] => {
-  const members: Member[] = [];
+export const parseMembersFromCSV = (csv: string): Omit<Member, 'id'>[] => {
+  const members: Omit<Member, 'id'>[] = [];
   
   const lines = csv.split('\n');
-  const headers = lines[0].split(',');
+  if (lines.length < 2) return members; // Need at least header and one data row
+  
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+  
+  // Find column indices
+  const getColumnIndex = (columnName: string) => {
+    return headers.findIndex(h => h === columnName.toLowerCase());
+  };
+  
+  const memberIdIndex = getColumnIndex('memberid');
+  const nameIndex = getColumnIndex('name');
+  const phoneIndex = getColumnIndex('phone');
+  const emailIndex = getColumnIndex('email');
+  const addressIndex = getColumnIndex('address');
+  const notesIndex = getColumnIndex('notes');
+  const joinDateIndex = getColumnIndex('joindate');
+  const branchIndex = getColumnIndex('branch');
+  const statusIndex = getColumnIndex('status');
+  const groupIndex = getColumnIndex('group');
+  
+  // Validate required columns
+  if (memberIdIndex === -1 || nameIndex === -1) {
+    throw new Error('CSV must contain at least memberId and name columns');
+  }
   
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
     
     const values = parseCSVLine(line);
-    if (values.length < 3) continue; // At minimum need id, memberId, and name
+    if (values.length < 2) continue; // At minimum need memberId and name
+    
+    // Extract values with safe indexing
+    const memberId = values[memberIdIndex]?.trim();
+    const name = values[nameIndex]?.trim();
+    
+    if (!memberId || !name) continue; // Skip rows without required data
     
     // Validate and parse branch
-    const branchValue = values[8]?.trim();
+    const branchValue = branchIndex >= 0 ? values[branchIndex]?.trim() : '';
     const branch: MemberBranch | undefined = branchValue && MEMBER_BRANCHES.includes(branchValue as MemberBranch) 
       ? branchValue as MemberBranch 
       : undefined;
     
     // Validate and parse status
-    const statusValue = values[9]?.trim();
+    const statusValue = statusIndex >= 0 ? values[statusIndex]?.trim() : '';
     const status: MemberStatus = statusValue && MEMBER_STATUSES.includes(statusValue as MemberStatus)
       ? statusValue as MemberStatus
       : 'Active';
     
     // Validate and parse group
-    const groupValue = values[10]?.trim();
+    const groupValue = groupIndex >= 0 ? values[groupIndex]?.trim() : '';
     const group: MemberGroup = groupValue && MEMBER_GROUPS.includes(groupValue as MemberGroup)
       ? groupValue as MemberGroup
       : 'Legion';
     
-    // Map CSV columns to member properties
-    const member: Member = {
-      id: values[0] || Date.now().toString() + Math.random().toString(36).substring(2, 9),
-      memberId: values[1],
-      name: values[2],
-      phone: values[3] || '',
-      email: values[4] || 'no-email@example.com', // Provide default email since it's now required
-      address: values[5] || undefined,
-      notes: values[6] || undefined,
-      joinDate: values[7] ? new Date(values[7]) : new Date(),
+    // Parse join date
+    const joinDateValue = joinDateIndex >= 0 ? values[joinDateIndex]?.trim() : '';
+    let joinDate: Date;
+    try {
+      joinDate = joinDateValue ? new Date(joinDateValue) : new Date();
+      // Check if date is valid
+      if (isNaN(joinDate.getTime())) {
+        joinDate = new Date();
+      }
+    } catch {
+      joinDate = new Date();
+    }
+    
+    // Extract other optional fields
+    const phone = phoneIndex >= 0 ? values[phoneIndex]?.trim() : '';
+    const email = emailIndex >= 0 ? values[emailIndex]?.trim() : '';
+    const address = addressIndex >= 0 ? values[addressIndex]?.trim() : '';
+    const notes = notesIndex >= 0 ? values[notesIndex]?.trim() : '';
+    
+    // Create member object
+    const member: Omit<Member, 'id'> = {
+      memberId,
+      name,
+      phone: phone || undefined,
+      email: email || `${memberId.toLowerCase()}@example.com`, // Generate email if not provided
+      address: address || undefined,
+      notes: notes || undefined,
+      joinDate,
       branch,
       status,
       group
@@ -249,7 +296,8 @@ export const parseMembersFromCSV = (csv: string): Member[] => {
 export const getMemberImportTemplate = (): string => {
   return 'memberId,name,phone,email,address,notes,joinDate,branch,status,group\n' +
          'M001,John Doe,555-123-4567,john@example.com,"123 Main St, Lake Chapala",Active member,2023-01-15,Army,Active,Legion\n' +
-         'M002,Jane Smith,555-987-6543,jane@example.com,"456 Oak Ave, Lake Chapala",Volunteer,2022-11-20,Navy,Active,Auxiliary';
+         'M002,Jane Smith,555-987-6543,jane@example.com,"456 Oak Ave, Lake Chapala",Volunteer,2022-11-20,Navy,Active,Auxiliary\n' +
+         'M003,Bob Johnson,555-555-5555,bob@example.com,"789 Pine St, Lake Chapala",New member,2024-01-01,Air Force,Active,Sons of the American Legion';
 };
 
 /**
