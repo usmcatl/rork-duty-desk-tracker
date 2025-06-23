@@ -34,7 +34,7 @@ export const convertToCSV = (
       escapeCsvValue(item.category),
       escapeCsvValue(item.serialNumber || ''),
       escapeCsvValue(item.notes || ''),
-      new Date(item.addedDate).toISOString(),
+      item.addedDate.toISOString(),
       item.depositAmount !== undefined ? item.depositAmount.toString() : ''
     ];
     
@@ -63,9 +63,9 @@ export const convertToCSV = (
       record.id,
       record.equipmentId,
       record.memberId,
-      new Date(record.checkoutDate).toISOString(),
-      new Date(record.expectedReturnDate).toISOString(),
-      record.returnDate ? new Date(record.returnDate).toISOString() : '',
+      record.checkoutDate.toISOString(),
+      record.expectedReturnDate.toISOString(),
+      record.returnDate ? record.returnDate.toISOString() : '',
       escapeCsvValue(record.checkoutNotes || ''),
       escapeCsvValue(record.returnNotes || ''),
       escapeCsvValue(record.dutyOfficer),
@@ -108,7 +108,7 @@ export const convertMembersToCSV = (members: Member[]): string => {
       escapeCsvValue(member.email),
       escapeCsvValue(member.address || ''),
       escapeCsvValue(member.notes || ''),
-      new Date(member.joinDate).toISOString(),
+      member.joinDate.toISOString(),
       escapeCsvValue(member.branch || ''),
       member.status,
       member.group
