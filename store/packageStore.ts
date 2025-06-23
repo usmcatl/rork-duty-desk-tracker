@@ -15,40 +15,8 @@ interface PackageState {
   clearAllData: () => void;
 }
 
-// Sample data for the app
-const samplePackages: Package[] = [
-  {
-    id: '1',
-    recipientName: 'John Smith',
-    memberId: '1',
-    description: 'Medical supplies order',
-    sender: 'MedSupply Co.',
-    status: 'pending',
-    arrivalDate: new Date('2023-11-15'),
-    storageLocation: 'Shelf A-3',
-    packagePhotoUri: 'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?q=80&w=500',
-    labelPhotoUri: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=500',
-    storagePhotoUri: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=500',
-    addedBy: 'Emily Davis',
-    notes: 'Fragile - handle with care',
-  },
-  {
-    id: '2',
-    recipientName: 'Maria Garcia',
-    memberId: '2',
-    description: 'Personal package',
-    sender: 'Amazon',
-    status: 'picked-up',
-    arrivalDate: new Date('2023-11-12'),
-    pickupDate: new Date('2023-11-14'),
-    storageLocation: 'Shelf B-1',
-    packagePhotoUri: 'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?q=80&w=500',
-    labelPhotoUri: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=500',
-    storagePhotoUri: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=500',
-    addedBy: 'John Smith',
-    handOffBy: 'Emily Davis',
-  },
-];
+// Empty array for fresh app start
+const samplePackages: Package[] = [];
 
 export const usePackageStore = create<PackageState>()(
   persist(

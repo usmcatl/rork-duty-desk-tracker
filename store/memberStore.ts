@@ -18,67 +18,8 @@ interface MemberState {
   clearAllMembers: () => void;
 }
 
-// Sample data for the app
-const sampleMembers: Member[] = [
-  {
-    id: '1',
-    name: 'John Smith',
-    aliases: ['Johnny', 'J. Smith'],
-    memberId: 'MED001',
-    phone: '+1 (555) 123-4567',
-    email: 'john.smith@example.com',
-    joinDate: new Date('2024-01-15T10:30:00.000Z'),
-    dateOfBirth: new Date('1975-03-22T00:00:00.000Z'),
-    associatedMembers: ['2'],
-    branch: 'Army',
-    status: 'Active',
-    group: 'Legion',
-    addedBy: 'John Smith',
-    involvementInterests: ['Veterans & Family Assistance', 'Events'],
-  },
-  {
-    id: '2',
-    name: 'Maria Garcia',
-    aliases: ['Mary Garcia'],
-    memberId: 'MED002',
-    phone: '+1 (555) 987-6543',
-    email: 'maria.garcia@example.com',
-    joinDate: new Date('2024-02-20T14:15:00.000Z'),
-    dateOfBirth: new Date('1982-07-14T00:00:00.000Z'),
-    associatedMembers: ['1'],
-    branch: 'Navy',
-    status: 'Active',
-    group: 'Auxiliary',
-    addedBy: 'Emily Davis',
-    involvementInterests: ['Community Outreach Programs', 'Social Media'],
-  },
-  {
-    id: '3',
-    name: 'David Johnson',
-    aliases: ['Dave Johnson', 'D.J.'],
-    memberId: 'MED003',
-    phone: '+1 (555) 456-7890',
-    email: 'david.johnson@example.com',
-    joinDate: new Date('2024-03-10T09:45:00.000Z'),
-    dateOfBirth: new Date('1968-11-08T00:00:00.000Z'),
-    branch: 'Air Force',
-    status: 'Active',
-    group: 'Legion',
-    addedBy: 'Robert Johnson',
-    involvementInterests: ['Membership', 'Donations/Sponsorship'],
-  },
-  {
-    id: '4',
-    name: 'Sarah Wilson',
-    memberId: 'MED004',
-    email: 'sarah.wilson@example.com',
-    joinDate: new Date('2024-04-05T16:20:00.000Z'),
-    dateOfBirth: new Date('1990-05-30T00:00:00.000Z'),
-    status: 'Inactive',
-    group: 'Sons of the American Legion',
-    addedBy: 'Maria Garcia',
-  },
-];
+// Empty array for fresh app start
+const sampleMembers: Member[] = [];
 
 export const useMemberStore = create<MemberState>()(
   persist(
