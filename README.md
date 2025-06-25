@@ -1,58 +1,57 @@
-# Equipment Manager
+# Equipment Manager App
 
-A React Native app for managing equipment checkout and inventory.
+## Environment Setup
 
-## Building for Android Studio
+This application requires environment variables to be set up correctly for the backend API connection.
 
-This app is built with Expo and can be compiled for Android Studio. To create an APK:
+### Development Setup
 
-### Option 1: Using EAS Build (Recommended)
-```bash
-# Install EAS CLI
-npm install -g @expo/eas-cli
+1. Copy `.env.example` to `.env`:
+   ```
+   cp .env.example .env
+   ```
 
-# Login to Expo
-eas login
+2. For development with Rork tunnel, the default configuration should work:
+   ```
+   EXPO_PUBLIC_RORK_API_BASE_URL=https://c719klaq6of7ag0uymb5h.rork.app
+   ```
 
-# Build APK
-eas build --platform android --profile preview
-```
+3. Start the development server:
+   ```
+   npm start
+   ```
 
-### Option 2: Using Android Studio (Local Build)
-```bash
-# Generate native Android project
-npx expo prebuild --platform android
+### Production Setup
 
-# Open in Android Studio
-# Navigate to the generated android/ folder and open in Android Studio
-# Build APK from Android Studio: Build > Build Bundle(s) / APK(s) > Build APK(s)
-```
+For building an APK or deploying to app stores:
 
-### Option 3: Local APK Build
-```bash
-# Generate native project
-npx expo prebuild --platform android
+1. Deploy your backend to a production server
+2. Update `.env` with your production backend URL:
+   ```
+   EXPO_PUBLIC_RORK_API_BASE_URL=https://your-production-backend.com
+   ```
 
-# Build APK locally (requires Android SDK)
-cd android
-./gradlew assembleRelease
-```
+3. Build your app using EAS Build or expo build commands
 
-## Development
+## Building an APK
 
-```bash
-# Start development server
-npm start
+To build an APK for Android:
 
-# Start for web
-npm run start-web
-```
+1. Make sure your environment variables are configured correctly in `.env`
+2. Use EAS Build to create your APK:
+   ```
+   eas build -p android --profile preview
+   ```
+
+3. Or use the traditional Expo build command:
+   ```
+   expo build:android
+   ```
 
 ## Features
 
-- Equipment inventory management
+- Equipment management
 - Member management
 - Package tracking
-- QR code scanning
-- Checkout/return history
-- CSV import/export
+- CSV import for members
+- Shift management
