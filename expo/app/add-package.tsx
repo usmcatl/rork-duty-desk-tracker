@@ -21,6 +21,8 @@ import Dropdown from '@/components/Dropdown';
 import { Camera, X, User, Plus, ChevronDown, Check, AlertTriangle } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { persistPhoto } from '@/utils/photoStorage';
+import { Member } from '@/types/member';
+import { memberStatusColor, memberSubtitle, membershipWarningText, needsMembershipWarning } from '@/utils/memberUtils';
 
 type PhotoType = 'package' | 'label' | 'storage';
 
@@ -88,12 +90,30 @@ export default function AddPackageScreen() {
     }
   };
   
-  const handleMemberSelect = (member: any) => {
+  const applyMemberSelection = (member: Member) => {
     setSelectedMemberId(member.id);
     setRecipientName(member.name);
     setMemberSearchQuery(member.name);
     setShowMemberDropdown(false);
   };
+
+  const handleMemberSelect = (member: Member) => {
+    if (!needsMembershipWarning(member)) {
+      applyMemberSelection(member);
+      return;
+    }
+    setShowMemberDropdown(false);
+    Alert.alert(
+      'Membership Not Current',
+      `${membershipWarningText(member)}\n\nYou can still log this package, but please remind them to renew when they pick it up.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log Package Anyway', onPress: () => applyMemberSelection(member) },
+      ]
+    );
+  };
+
+  const selectedMember = members.find((m) => m.id === selectedMemberId);
   
   const handleTakePhoto = async (photoType: PhotoType) => {
     // Check camera permissions
@@ -348,7 +368,12 @@ export default function AddPackageScreen() {
                           <Text style={styles.memberDropdownName}>
                             {formatMemberDisplay(item)}
                           </Text>
-                          <Text style={styles.memberDropdownId}>ID: {item.memberId}</Text>
+                          <Text style={styles.memberDropdownId}>{memberSubtitle(item)}</Text>
+                          {needsMembershipWarning(item) && (
+                            <Text style={[styles.memberDropdownStatus, { color: memberStatusColor(item.status) }]}>
+                              {item.status}: membership not current
+                            </Text>
+                          )}
                         </View>
                       </TouchableOpacity>
                     ))}
@@ -367,6 +392,15 @@ export default function AddPackageScreen() {
               )}
             </View>
             
+            {selectedMember && needsMembershipWarning(selectedMember) && (
+              <View style={styles.membershipWarning}>
+                <AlertTriangle size={18} color={memberStatusColor(selectedMember.status)} />
+                <Text style={[styles.membershipWarningText, { color: memberStatusColor(selectedMember.status) }]}>
+                  {membershipWarningText(selectedMember)}
+                </Text>
+              </View>
+            )}
+
             {!selectedMemberId && recipientName.trim() && (
               <Text style={styles.memberWarning}>
                 Please select an existing member from the dropdown. New member creation is pending department advisory.
@@ -600,6 +634,27 @@ const styles = StyleSheet.create({
   },
   disabledCreateMemberText: {
     color: Colors.light.subtext,
+  },
+  memberDropdownStatus: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  membershipWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8E1',
+    borderColor: Colors.light.warning,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+  },
+  membershipWarningText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   memberWarning: {
     fontSize: 12,

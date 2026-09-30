@@ -35,6 +35,16 @@ function setup() {
     getSheet_(table);
   });
   getPhotoFolder_();
+
+  var hasContactsTrigger = ScriptApp.getProjectTriggers().some(function (trigger) {
+    return trigger.getHandlerFunction() === 'syncMembersFromContacts';
+  });
+  if (!hasContactsTrigger) {
+    ScriptApp.newTrigger('syncMembersFromContacts').timeBased().everyDays(1).atHour(3).create();
+  }
+  var result = syncMembersFromContacts();
+
+  Logger.log('Members from Google Contacts: ' + result.members + ' (' + result.active + ' active), ' + result.written + ' rows updated.');
   Logger.log('Sync token (enter this in the app under Settings > Google Sheets Sync): ' + token);
 }
 
@@ -84,11 +94,7 @@ function sync_(request) {
   var device = String(request.device || 'unknown');
   var since = Number(request.since || 0);
 
-  // Timestamps must strictly increase between syncs, or a device whose pull
-  // returned the same millisecond as another device's write would miss it.
-  var props = PropertiesService.getScriptProperties();
-  var now = Math.max(Date.now(), Number(props.getProperty('LAST_SYNC_TIME') || 0) + 1);
-  props.setProperty('LAST_SYNC_TIME', String(now));
+  var now = nextTimestamp_();
 
   var writesByTable = {};
   (request.changes || []).forEach(function (change) {
@@ -99,6 +105,10 @@ function sync_(request) {
     if (!TABLES[del.table]) return;
     (writesByTable[del.table] = writesByTable[del.table] || []).push({ id: String(del.id), data: null, deleted: true });
   });
+
+  if (writesByTable.members) {
+    pushMemberIdsToContacts_(writesByTable.members);
+  }
 
   var rows = [];
   Object.keys(TABLES).forEach(function (table) {
@@ -111,6 +121,18 @@ function sync_(request) {
   });
 
   return { ok: true, serverTime: now, rows: rows };
+}
+
+/**
+ * Timestamps must strictly increase between writes, or a device whose pull
+ * returned the same millisecond as another write would miss it. Callers must
+ * hold the script lock.
+ */
+function nextTimestamp_() {
+  var props = PropertiesService.getScriptProperties();
+  var now = Math.max(Date.now(), Number(props.getProperty('LAST_SYNC_TIME') || 0) + 1);
+  props.setProperty('LAST_SYNC_TIME', String(now));
+  return now;
 }
 
 function applyWrites_(sheet, writes, device, now) {
@@ -204,6 +226,245 @@ function savePhoto_(request) {
   var blob = Utilities.newBlob(Utilities.base64Decode(request.data), request.mimeType || 'image/jpeg', name);
   var file = folder.createFile(blob);
   return { ok: true, fileId: file.getId() };
+}
+
+/* ---------------------------------------------------------------------------
+ * Members from Google Contacts
+ *
+ * The Post's contacts are the membership roster. Each contact carries year
+ * labels ("2026 Renewed", "2027 New Member", ...) and group labels
+ * ("General Membership", "Auxiliary", "SAL", "PUFL", "Supporter ...").
+ * Anyone with a year label or PUFL becomes a member in the app:
+ *   - Active:   a label for the current year or later, or PUFL (paid up for life)
+ *   - Inactive: only past-year labels
+ * Runs daily (trigger installed by setup) and writes changes to the Members
+ * tab, which the tablets pick up on their next sync. Requires the People API
+ * advanced service (Services > People API in the Apps Script editor).
+ * ------------------------------------------------------------------------- */
+
+var CONTACTS_DEVICE = 'google-contacts';
+var CONTACT_ID_PREFIX = 'contact-';
+// Fields the app manages itself; contact syncs keep whatever the app has.
+var APP_OWNED_MEMBER_FIELDS = ['aliases', 'associatedMembers', 'involvementInterests', 'addedBy', 'dateOfBirth', 'branch'];
+
+function syncMembersFromContacts() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(60000)) {
+    throw new Error('Another sync is running; try again in a minute.');
+  }
+  try {
+    return syncMembersFromContacts_();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function syncMembersFromContacts_() {
+  var currentYear = new Date().getFullYear();
+
+  var groupNames = {};
+  var pageToken;
+  do {
+    var groups = People.ContactGroups.list({ pageSize: 1000, pageToken: pageToken });
+    (groups.contactGroups || []).forEach(function (group) {
+      groupNames[group.resourceName] = group.formattedName || group.name;
+    });
+    pageToken = groups.nextPageToken;
+  } while (pageToken);
+
+  var members = {};
+  var people = {};
+  pageToken = undefined;
+  do {
+    var page = People.People.Connections.list('people/me', {
+      pageSize: 1000,
+      pageToken: pageToken,
+      personFields: 'names,emailAddresses,phoneNumbers,addresses,biographies,memberships'
+    });
+    (page.connections || []).forEach(function (person) {
+      var member = memberFromContact_(person, groupNames, currentYear);
+      if (member) {
+        members[member.id] = member;
+        people[member.id] = person;
+      }
+    });
+    pageToken = page.nextPageToken;
+  } while (pageToken);
+
+  var sheet = getSheet_('members');
+  var values = sheet.getDataRange().getValues();
+  var existing = {};
+  var lastWriter = {};
+  for (var r = 1; r < values.length; r++) {
+    var id = String(values[r][0]);
+    if (id.indexOf(CONTACT_ID_PREFIX) !== 0 || String(values[r][2]).toUpperCase() === 'TRUE') continue;
+    try {
+      existing[id] = JSON.parse(values[r][4]);
+      lastWriter[id] = String(values[r][3]);
+    } catch (err) {
+      // A damaged json cell is simply rewritten below.
+    }
+  }
+
+  var writes = [];
+  Object.keys(members).forEach(function (id) {
+    var next = members[id];
+    var prev = existing[id];
+    if (prev) {
+      APP_OWNED_MEMBER_FIELDS.forEach(function (field) {
+        if (prev[field] !== undefined) next[field] = prev[field];
+      });
+      // A member ID set in the app that hasn't reached the contact yet (the
+      // immediate write-back failed): keep it and retry the write-back.
+      if (prev.memberId && prev.memberId !== next.memberId && lastWriter[id] !== CONTACTS_DEVICE) {
+        try {
+          next.notes = writeMemberIdToContact_(people[id], prev.memberId);
+          next.memberId = prev.memberId;
+        } catch (err) {
+          next.memberId = prev.memberId;
+          Logger.log('Could not save member ID to contact ' + id + ': ' + err);
+        }
+      }
+    }
+    if (!prev || stableStringify_(prev) !== stableStringify_(next)) {
+      writes.push({ id: id, data: next, deleted: false });
+    }
+  });
+
+  // Contacts that were deleted or lost all membership labels stay in the app
+  // (packages and checkouts may reference them) but are no longer Active.
+  Object.keys(existing).forEach(function (id) {
+    var prev = existing[id];
+    if (!members[id] && prev && prev.status === 'Active') {
+      prev.status = 'Inactive';
+      writes.push({ id: id, data: prev, deleted: false });
+    }
+  });
+
+  if (writes.length) {
+    applyWrites_(sheet, writes, CONTACTS_DEVICE, nextTimestamp_());
+  }
+
+  var ids = Object.keys(members);
+  return {
+    members: ids.length,
+    active: ids.filter(function (id) { return members[id].status === 'Active'; }).length,
+    written: writes.length
+  };
+}
+
+function memberFromContact_(person, groupNames, currentYear) {
+  var labels = (person.memberships || [])
+    .map(function (m) { return m.contactGroupMembership && groupNames[m.contactGroupMembership.contactGroupResourceName]; })
+    .filter(function (name) { return name; });
+  var lowerLabels = labels.map(function (label) { return String(label).toLowerCase(); });
+
+  var years = [];
+  labels.forEach(function (label) {
+    var match = /^(\d{4})\b/.exec(label);
+    if (match && years.indexOf(Number(match[1])) === -1) years.push(Number(match[1]));
+  });
+  years.sort();
+  var lifetime = lowerLabels.indexOf('pufl') !== -1;
+  if (!years.length && !lifetime) {
+    return null; // Not a member: vendors, volunteers-only, etc.
+  }
+
+  var notes = ((person.biographies || [])[0] || {}).value || '';
+  var membershipType = (/Membership Type:\s*(.+)/i.exec(notes) || [])[1] || '';
+  var memberIdMatch = /Member\s*(?:ID|#|No\.?|Number)\s*[:#]?\s*([A-Za-z0-9-]+)/i.exec(notes);
+  var mailingAddress = (/Mailing Address:\s*(.+)/i.exec(notes) || [])[1] || '';
+
+  var name = ((person.names || [])[0] || {}).displayName || ((person.emailAddresses || [])[0] || {}).value || 'Unnamed contact';
+  var address = ((person.addresses || [])[0] || {}).formattedValue || mailingAddress;
+
+  var status = lifetime || years.some(function (year) { return year >= currentYear; }) ? 'Active' : 'Inactive';
+  if (lowerLabels.indexOf('deceased') !== -1 || /\bdeceased\b/i.test(membershipType)) {
+    status = 'Deceased';
+  }
+
+  var typeAndLabels = (lowerLabels.join('|') + '|' + membershipType.toLowerCase());
+  var group = 'Legion';
+  if (lowerLabels.indexOf('general membership') !== -1) {
+    group = 'Legion';
+  } else if (/auxiliary|\bala\b/.test(typeAndLabels)) {
+    group = 'Auxiliary';
+  } else if (/\bsal\b|sons of the american legion/.test(typeAndLabels)) {
+    group = 'Sons of the American Legion';
+  } else if (/legion riders/.test(typeAndLabels)) {
+    group = 'Legion Riders';
+  }
+
+  var member = {
+    id: CONTACT_ID_PREFIX + String(person.resourceName).split('/').pop(),
+    memberId: memberIdMatch ? memberIdMatch[1] : '',
+    name: name,
+    email: ((person.emailAddresses || [])[0] || {}).value || '',
+    status: status,
+    group: group,
+    source: 'google-contacts',
+    membershipYears: years,
+    membershipLabels: labels.filter(function (label) { return label !== 'ALL'; })
+  };
+  var phone = ((person.phoneNumbers || [])[0] || {}).value;
+  if (phone) member.phone = phone;
+  if (address) member.address = address;
+  if (notes) member.notes = notes;
+  if (years.length) member.joinDate = new Date(Date.UTC(years[0], 0, 1)).toISOString();
+  return member;
+}
+
+/**
+ * Save a member ID into the contact's notes as a "Member ID: <id>" line,
+ * replacing an existing one. Returns the updated notes text.
+ */
+function writeMemberIdToContact_(person, memberId) {
+  var notes = ((person.biographies || [])[0] || {}).value || '';
+  var line = 'Member ID: ' + memberId;
+  var pattern = /^.*Member\s*(?:ID|#|No\.?|Number)\s*[:#]?.*$/im;
+  var updated = pattern.test(notes) ? notes.replace(pattern, line) : (notes ? notes + '\n' + line : line);
+  if (updated === notes) return notes;
+
+  People.People.updateContact(
+    { etag: person.etag, biographies: [{ value: updated, contentType: 'TEXT_PLAIN' }] },
+    person.resourceName,
+    { updatePersonFields: 'biographies' }
+  );
+  return updated;
+}
+
+/**
+ * Called during a tablet sync: push member IDs set in the app for
+ * contact-sourced members back to Google Contacts right away. Failures are
+ * logged and retried by the daily contacts sync; they never fail the sync.
+ */
+function pushMemberIdsToContacts_(changes) {
+  changes.forEach(function (change) {
+    var data = change.data;
+    if (!data || !data.memberId || String(change.id).indexOf(CONTACT_ID_PREFIX) !== 0) return;
+    try {
+      var person = People.People.get('people/' + String(change.id).substring(CONTACT_ID_PREFIX.length), { personFields: 'biographies' });
+      var current = /Member\s*(?:ID|#|No\.?|Number)\s*[:#]?\s*([A-Za-z0-9-]+)/i.exec(((person.biographies || [])[0] || {}).value || '');
+      if (!current || current[1] !== data.memberId) {
+        writeMemberIdToContact_(person, data.memberId);
+      }
+    } catch (err) {
+      Logger.log('Member ID write-back failed for ' + change.id + ': ' + err);
+    }
+  });
+}
+
+/** JSON.stringify with sorted keys, so key order never counts as a change. */
+function stableStringify_(value) {
+  if (Array.isArray(value)) {
+    return '[' + value.map(stableStringify_).join(',') + ']';
+  }
+  if (value && typeof value === 'object') {
+    return '{' + Object.keys(value).sort().filter(function (key) { return value[key] !== undefined; }).map(function (key) {
+      return JSON.stringify(key) + ':' + stableStringify_(value[key]);
+    }).join(',') + '}';
+  }
+  return JSON.stringify(value);
 }
 
 function getSheet_(table) {

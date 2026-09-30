@@ -11,6 +11,7 @@ export default {
     success: "#28A745", // Green
     error: "#DC3545", // Red
     warning: "#FFC107", // Yellow/Gold
+    warningText: "#8A5A00", // Dark amber, readable as text on white
     border: "#E0E0E0", // Light gray border
     shadow: "rgba(0, 0, 0, 0.05)",
     // Additional US Flag colors

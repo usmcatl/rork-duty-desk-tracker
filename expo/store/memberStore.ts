@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Member } from '@/types/member';
+import { matchesMemberSearch } from '@/utils/memberUtils';
 
 interface MemberState {
   members: Member[];
@@ -13,7 +14,6 @@ interface MemberState {
   addAssociation: (memberId: string, associatedMemberId: string) => void;
   removeAssociation: (memberId: string, associatedMemberId: string) => void;
   searchMembers: (query: string) => Member[];
-  importMembers: (members: Omit<Member, 'id'>[]) => void;
   setMembers: (members: Member[]) => void;
   clearAllMembers: () => void;
 }
@@ -95,35 +95,7 @@ export const useMemberStore = create<MemberState>()(
       },
       
       searchMembers: (query) => {
-        const lowerQuery = query.toLowerCase();
-        return get().members.filter(member => {
-          const nameMatch = member.name.toLowerCase().includes(lowerQuery);
-          const memberIdMatch = member.memberId.toLowerCase().includes(lowerQuery);
-          const phoneMatch = member.phone?.includes(query) || false;
-          const aliasMatch = member.aliases?.some(alias => 
-            alias.toLowerCase().includes(lowerQuery)
-          ) || false;
-          
-          return nameMatch || memberIdMatch || phoneMatch || aliasMatch;
-        });
-      },
-      
-      importMembers: (newMembers) => {
-        set((state) => {
-          // Generate unique IDs for imported members and ensure required fields
-          const membersWithIds = newMembers.map(member => ({
-            ...member,
-            id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
-            status: member.status || 'Active',
-            group: member.group || 'Legion',
-            email: member.email || 'no-email@example.com', // Ensure email is present
-            joinDate: member.joinDate || new Date(), // Ensure joinDate is present
-          }));
-          
-          return {
-            members: [...state.members, ...membersWithIds],
-          };
-        });
+        return get().members.filter(member => matchesMemberSearch(member, query));
       },
       
       setMembers: (members) => {

@@ -11,10 +11,16 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
+import { matchesMemberSearch, memberStatusColor, memberSubtitle } from '@/utils/memberUtils';
+import { useSyncStore } from '@/store/syncStore';
+import { MemberStatus } from '@/types/member';
+
+const CONTACTS_ROSTER_MESSAGE =
+  "Members come from the Post's Google Contacts (americanlegionchapala@gmail.com). To add or renew someone, update their contact and give them a year label such as '2026 Renewed'. The app picks up changes automatically each day, or tap Sync Now.";
 import { useMemberStore } from '@/store/memberStore';
 import EmptyState from '@/components/EmptyState';
 import Button from '@/components/Button';
-import { Plus, Search, Filter, User, Phone, Calendar, ChevronRight, Users, Upload, Shield, Activity, AlertTriangle } from 'lucide-react-native';
+import { Plus, Search, Filter, User, Phone, Calendar, ChevronRight, Users, RefreshCw, Shield, Activity, AlertTriangle } from 'lucide-react-native';
 
 export default function MembersScreen() {
   const router = useRouter();
@@ -23,24 +29,34 @@ export default function MembersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAdvisoryDialog, setShowAdvisoryDialog] = useState(false);
   
+  const { syncNow, isSyncing, endpointUrl } = useSyncStore();
+
   // Filter members based on search
   const filteredMembers = members.filter(member => {
-    return searchQuery === '' || 
-      member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.memberId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (member.phone && member.phone.includes(searchQuery)) ||
-      (member.email && member.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (member.branch && member.branch.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      member.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.group.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase();
+    return matchesMemberSearch(member, searchQuery) ||
+      (member.branch && member.branch.toLowerCase().includes(q)) ||
+      member.status.toLowerCase().includes(q) ||
+      member.group.toLowerCase().includes(q);
   });
-  
+
   const handleAddMemberAttempt = () => {
     setShowAdvisoryDialog(true);
   };
-  
-  const handleImportMembers = () => {
-    router.push('/import-members');
+
+  const handleSyncNow = async () => {
+    if (!endpointUrl) {
+      Alert.alert('Sync Not Connected', 'Connect Google Sheets Sync in Settings first. Members come from the Post\'s Google Contacts through that sync.');
+      return;
+    }
+    try {
+      const result = await syncNow();
+      if (result) {
+        Alert.alert('Sync Complete', result.pulled > 0 ? `Received ${result.pulled} updates.` : 'The member list is up to date.');
+      }
+    } catch (error) {
+      Alert.alert('Sync Failed', error instanceof Error ? error.message : String(error));
+    }
   };
   
   const handleMemberPress = (id: string) => {
@@ -51,9 +67,7 @@ export default function MembersScreen() {
     return new Date(date).toLocaleDateString();
   };
   
-  const getStatusColor = (status: string) => {
-    return status === 'Active' ? Colors.light.primary : Colors.light.subtext;
-  };
+  const getStatusColor = (status: MemberStatus) => memberStatusColor(status);
   
   if (members.length === 0) {
     return (
@@ -73,15 +87,15 @@ export default function MembersScreen() {
               </View>
               
               <Text style={styles.modalMessage}>
-                Manual member creation is currently pending department advisory approval. Please use CSV import to add new members.
+                {CONTACTS_ROSTER_MESSAGE}
               </Text>
-              
+
               <View style={styles.modalButtons}>
                 <Button
-                  title="Use CSV Import"
+                  title="Sync Now"
                   onPress={() => {
                     setShowAdvisoryDialog(false);
-                    handleImportMembers();
+                    handleSyncNow();
                   }}
                   style={styles.modalButton}
                 />
@@ -98,9 +112,9 @@ export default function MembersScreen() {
 
         <EmptyState
           title="No Members Found"
-          description="Member database is currently empty. Use CSV import to add members to the system."
-          actionLabel="Import Members"
-          onAction={handleImportMembers}
+          description="Members come from the Post's Google Contacts through Google Sheets sync. Connect sync in Settings, then tap Sync Now."
+          actionLabel="Sync Now"
+          onAction={handleSyncNow}
           icon={<Users size={48} color={Colors.light.primary} />}
         />
       </View>
@@ -124,15 +138,15 @@ export default function MembersScreen() {
             </View>
             
             <Text style={styles.modalMessage}>
-              Manual member creation is currently pending department advisory approval. Please use CSV import to add new members.
+              {CONTACTS_ROSTER_MESSAGE}
             </Text>
-            
+
             <View style={styles.modalButtons}>
               <Button
-                title="Use CSV Import"
+                title="Sync Now"
                 onPress={() => {
                   setShowAdvisoryDialog(false);
-                  handleImportMembers();
+                  handleSyncNow();
                 }}
                 style={styles.modalButton}
               />
@@ -169,12 +183,13 @@ export default function MembersScreen() {
           <Text style={[styles.actionButtonText, styles.disabledActionButtonText]}>Add Member</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.actionButton}
-          onPress={handleImportMembers}
+          onPress={handleSyncNow}
+          disabled={isSyncing}
         >
-          <Upload size={16} color={Colors.light.primary} />
-          <Text style={styles.actionButtonText}>Import CSV</Text>
+          <RefreshCw size={16} color={Colors.light.primary} />
+          <Text style={styles.actionButtonText}>{isSyncing ? 'Syncing...' : 'Sync Now'}</Text>
         </TouchableOpacity>
       </View>
       
@@ -199,7 +214,7 @@ export default function MembersScreen() {
                   <View style={styles.memberHeader}>
                     <Text style={styles.memberName}>{member.name}</Text>
                     <View style={styles.memberIdRow}>
-                      <Text style={styles.memberId}>ID: {member.memberId}</Text>
+                      <Text style={styles.memberId}>{memberSubtitle(member)}</Text>
                       <Text style={[styles.statusBadge, { color: getStatusColor(member.status) }]}>
                         {member.status}
                       </Text>
@@ -230,12 +245,16 @@ export default function MembersScreen() {
                       </Text>
                     </View>
                     
-                    <View style={styles.memberDetail}>
-                      <Calendar size={14} color={Colors.light.subtext} />
-                      <Text style={styles.memberDetailText}>
-                        Joined: {formatDate(member.joinDate)}
-                      </Text>
-                    </View>
+                    {member.joinDate && (
+                      <View style={styles.memberDetail}>
+                        <Calendar size={14} color={Colors.light.subtext} />
+                        <Text style={styles.memberDetailText}>
+                          {member.source === 'google-contacts'
+                            ? `Member since ${new Date(member.joinDate).getUTCFullYear()}`
+                            : `Joined: ${formatDate(member.joinDate)}`}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
                 
@@ -251,13 +270,6 @@ export default function MembersScreen() {
           />
         )}
       </ScrollView>
-      
-      <TouchableOpacity 
-        style={styles.fab}
-        onPress={handleImportMembers}
-      >
-        <Upload size={24} color="#fff" />
-      </TouchableOpacity>
     </View>
   );
 }
@@ -384,22 +396,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.light.subtext,
     marginLeft: 4,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.light.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: Colors.light.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
   },
   modalOverlay: {
     flex: 1,

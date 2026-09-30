@@ -4,7 +4,9 @@ A standalone Android app for the Duty Desk at American Legion Post 7, Lake Chapa
 
 - **Packages**: arrivals (with package, label, and storage-location photos) and member pickups
 - **Equipment**: check-out, deposits, due dates, lease renewals, overdue alerts, and returns
-- **Members**: the member roster (CSV import), profiles, and associated members
+- **Members**: the roster from the Post's Google Contacts, with Active/Inactive status (only Active
+  members can check out equipment; packages for others show a warning), profiles, and associated
+  members
 - **Shifts**: tablet changeover and duty-officer handover history
 
 Everything is stored on the device, and the app works with no internet connection. It has no
@@ -101,7 +103,6 @@ npm run android       # run on a connected device/emulator with live reload
 
 - **Google Sheets sync** (recommended): continuous, automatic backup of all records, plus photo
   backup to Drive.
-- **Settings → CSV Export**: manual export of equipment, checkouts, and members to CSV files.
 
 ## Support
 

@@ -26,9 +26,6 @@ import {
   ChevronRight, 
   Plus,
   X,
-  FileText,
-  Download,
-  Upload,
   Cloud,
   Users,
   Shield,
@@ -36,17 +33,8 @@ import {
   Tablet,
   Calendar
 } from 'lucide-react-native';
-import * as FileSystem from 'expo-file-system';
-import * as DocumentPicker from 'expo-document-picker';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { convertToCSV, parseFromCSV, convertMembersToCSV, parseMembersFromCSV } from '@/utils/csvUtils';
-
-// Import Sharing conditionally for platform compatibility
-let Sharing: any = null;
-if (Platform.OS !== 'web') {
-  // Only import on native platforms
-  Sharing = require('expo-sharing');
-}
+import Constants from 'expo-constants';
 
 export default function SettingsScreen() {
   const { 
@@ -54,8 +42,6 @@ export default function SettingsScreen() {
     checkoutRecords, 
     getDutyOfficers, 
     setDutyOfficers,
-    setEquipment,
-    setCheckoutRecords,
     clearAllData
   } = useEquipmentStore();
   
@@ -76,8 +62,6 @@ export default function SettingsScreen() {
   const dutyOfficers = useEquipmentStore((state) => state.dutyOfficers);
   const [newOfficer, setNewOfficer] = useState('');
   const [isAddingOfficer, setIsAddingOfficer] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
   const [biometricType, setBiometricType] = useState<string | null>(null);
   const [showShiftHistory, setShowShiftHistory] = useState(false);
   
@@ -183,169 +167,6 @@ export default function SettingsScreen() {
           onPress: () => {
             const updatedOfficers = dutyOfficers.filter(o => o !== officer);
             setDutyOfficers(updatedOfficers);
-          }
-        }
-      ]
-    );
-  };
-  
-  const handleExportData = async () => {
-    // Require authentication for export
-    const authenticated = await authenticateUser();
-    if (!authenticated) {
-      return; // Cancel the action if authentication fails
-    }
-    
-    if (Platform.OS === 'web') {
-      Alert.alert("Not Available", "Export functionality is not available on web");
-      return;
-    }
-    
-    try {
-      setIsExporting(true);
-      
-      // Convert data to CSV
-      const { equipmentCSV, checkoutRecordsCSV } = convertToCSV(equipment, checkoutRecords);
-      const membersCSV = convertMembersToCSV(members);
-      
-      // Create temporary files
-      const equipmentFilePath = `${FileSystem.cacheDirectory}equipment.csv`;
-      const checkoutFilePath = `${FileSystem.cacheDirectory}checkouts.csv`;
-      const membersFilePath = `${FileSystem.cacheDirectory}members.csv`;
-      
-      // Write data to files
-      await FileSystem.writeAsStringAsync(equipmentFilePath, equipmentCSV);
-      await FileSystem.writeAsStringAsync(checkoutFilePath, checkoutRecordsCSV);
-      await FileSystem.writeAsStringAsync(membersFilePath, membersCSV);
-      
-      // Check if sharing is available
-      const isSharingAvailable = await Sharing.isAvailableAsync();
-      
-      if (isSharingAvailable) {
-        // Share the files
-        await Sharing.shareAsync(equipmentFilePath, {
-          mimeType: 'text/csv',
-          dialogTitle: 'Export Equipment Data',
-          UTI: 'public.comma-separated-values-text'
-        });
-        
-        await Sharing.shareAsync(checkoutFilePath, {
-          mimeType: 'text/csv',
-          dialogTitle: 'Export Checkout Records',
-          UTI: 'public.comma-separated-values-text'
-        });
-        
-        await Sharing.shareAsync(membersFilePath, {
-          mimeType: 'text/csv',
-          dialogTitle: 'Export Members Data',
-          UTI: 'public.comma-separated-values-text'
-        });
-      } else {
-        Alert.alert("Error", "Sharing is not available on this device");
-      }
-    } catch (error) {
-      console.error('Export error:', error);
-      Alert.alert("Export Failed", "There was an error exporting your data");
-    } finally {
-      setIsExporting(false);
-    }
-  };
-  
-  const handleImportData = async () => {
-    if (Platform.OS === 'web') {
-      Alert.alert("Not Available", "Import functionality is not available on web");
-      return;
-    }
-    
-    Alert.alert(
-      "Import Data",
-      "This will replace all current data with the imported data. Continue?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Continue", 
-          onPress: async () => {
-            try {
-              setIsImporting(true);
-              
-              // First, pick equipment CSV
-              Alert.alert("Select Equipment CSV", "Please select the equipment CSV file");
-              const equipmentResult = await DocumentPicker.getDocumentAsync({
-                type: "text/csv",
-                copyToCacheDirectory: true
-              });
-              
-              if (equipmentResult.canceled) {
-                setIsImporting(false);
-                return;
-              }
-              
-              // Then, pick checkout records CSV
-              Alert.alert("Select Checkout Records CSV", "Please select the checkout records CSV file");
-              const checkoutResult = await DocumentPicker.getDocumentAsync({
-                type: "text/csv",
-                copyToCacheDirectory: true
-              });
-              
-              if (checkoutResult.canceled) {
-                setIsImporting(false);
-                return;
-              }
-              
-              // Then, pick members CSV
-              Alert.alert("Select Members CSV", "Please select the members CSV file");
-              const membersResult = await DocumentPicker.getDocumentAsync({
-                type: "text/csv",
-                copyToCacheDirectory: true
-              });
-              
-              if (membersResult.canceled) {
-                setIsImporting(false);
-                return;
-              }
-              
-              // Read the files
-              const equipmentCSV = await FileSystem.readAsStringAsync(equipmentResult.assets[0].uri);
-              const checkoutRecordsCSV = await FileSystem.readAsStringAsync(checkoutResult.assets[0].uri);
-              const membersCSV = await FileSystem.readAsStringAsync(membersResult.assets[0].uri);
-              
-              // Parse the CSV data
-              const { equipment: newEquipment, checkoutRecords: newCheckoutRecords } = 
-                parseFromCSV(equipmentCSV, checkoutRecordsCSV);
-              
-              const newMembers = parseMembersFromCSV(membersCSV);
-              
-              // Update the stores
-              setEquipment(newEquipment);
-              setCheckoutRecords(newCheckoutRecords);
-              
-              // Clear existing members and import new ones
-              clearAllMembers();
-              if (newMembers.length > 0) {
-                // Import members one by one to generate new IDs
-                newMembers.forEach(member => {
-                  useMemberStore.getState().addMember({
-                    memberId: member.memberId,
-                    name: member.name,
-                    phone: member.phone,
-                    email: member.email,
-                    address: member.address,
-                    notes: member.notes,
-                    joinDate: member.joinDate,
-                    branch: member.branch,
-                    status: member.status,
-                    group: member.group
-                  });
-                });
-              }
-              
-              Alert.alert("Import Successful", "Your data has been imported successfully");
-            } catch (error) {
-              console.error('Import error:', error);
-              Alert.alert("Import Failed", "There was an error importing your data");
-            } finally {
-              setIsImporting(false);
-            }
           }
         }
       ]
@@ -583,42 +404,6 @@ export default function SettingsScreen() {
           
           <SheetSyncCard />
           
-          {/* CSV Export/Import */}
-          <View style={styles.dataManagementCard}>
-            <View style={styles.dataManagementHeader}>
-              <FileText size={24} color={Colors.light.primary} style={styles.dataManagementIcon} />
-              <Text style={styles.dataManagementTitle}>CSV Export/Import</Text>
-            </View>
-            
-            <Text style={styles.dataManagementDescription}>
-              Export your equipment, checkout, and member data to CSV files for backup or transfer to another device.
-            </Text>
-            
-            <View style={styles.dataManagementButtons}>
-              <Button
-                title={isExporting ? "Exporting..." : "Export to CSV"}
-                onPress={handleExportData}
-                disabled={isExporting || Platform.OS === 'web'}
-                icon={<Download size={16} color="#fff" />}
-                style={styles.dataManagementButton}
-              />
-              
-              <Button
-                title={isImporting ? "Importing..." : "Import from CSV"}
-                onPress={handleImportData}
-                disabled={isImporting || Platform.OS === 'web'}
-                variant="outline"
-                icon={<Upload size={16} color={Colors.light.primary} />}
-                style={styles.dataManagementButton}
-              />
-            </View>
-            
-            {Platform.OS === 'web' && (
-              <Text style={styles.webNotice}>
-                Export and import functionality is not available on web. Please use the mobile app.
-              </Text>
-            )}
-          </View>
           
           <TouchableOpacity 
             style={styles.settingItem}
@@ -653,7 +438,7 @@ export default function SettingsScreen() {
           </View>
           
           <View style={styles.versionContainer}>
-            <Text style={styles.versionText}>Version 1.0.0</Text>
+            <Text style={styles.versionText}>Version {Constants.expoConfig?.version ?? "unknown"}</Text>
           </View>
         </View>
       </ScrollView>

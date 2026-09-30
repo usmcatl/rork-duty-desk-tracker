@@ -17,6 +17,7 @@ import { useEquipmentStore } from '@/store/equipmentStore';
 import Button from '@/components/Button';
 import Dropdown from '@/components/Dropdown';
 import EmptyState from '@/components/EmptyState';
+import { memberStatusColor, memberSubtitle, membershipWarningText, needsMembershipWarning } from '@/utils/memberUtils';
 import { 
   Package2, 
   User, 
@@ -29,7 +30,8 @@ import {
   Camera,
   Truck,
   Clock,
-  Shield
+  Shield,
+  AlertTriangle
 } from 'lucide-react-native';
 
 export default function PackageDetailScreen() {
@@ -212,7 +214,15 @@ export default function PackageDetailScreen() {
             </Text>
             {member && (
               <>
-                <Text style={styles.memberId}>ID: {member.memberId}</Text>
+                <Text style={styles.memberId}>{memberSubtitle(member)}</Text>
+                {needsMembershipWarning(member) && (
+                  <View style={styles.membershipWarning}>
+                    <AlertTriangle size={18} color={memberStatusColor(member.status)} />
+                    <Text style={[styles.membershipWarningText, { color: memberStatusColor(member.status) }]}>
+                      {membershipWarningText(member)} Remind them to renew at pickup.
+                    </Text>
+                  </View>
+                )}
                 {member.phone && (
                   <Text style={styles.memberContact}>Phone: {member.phone}</Text>
                 )}
@@ -417,6 +427,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.light.text,
     marginBottom: 4,
+  },
+  membershipWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8E1',
+    borderColor: Colors.light.warning,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginVertical: 6,
+  },
+  membershipWarningText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   memberId: {
     fontSize: 14,

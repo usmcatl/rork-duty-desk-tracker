@@ -128,13 +128,6 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen
-          name="import-members"
-          options={{
-            title: "Import Members",
-            presentation: "modal",
-          }}
-        />
-        <Stack.Screen
           name="tablet-changeover"
           options={{
             title: "Tablet Changeover",

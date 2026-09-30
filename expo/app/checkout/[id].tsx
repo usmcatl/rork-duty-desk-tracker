@@ -18,7 +18,15 @@ import { useEquipmentStore } from '@/store/equipmentStore';
 import { useMemberStore } from '@/store/memberStore';
 import Button from '@/components/Button';
 import Dropdown from '@/components/Dropdown';
-import { Calendar, User, Phone, FileText, DollarSign, Search, ChevronRight, AlertTriangle } from 'lucide-react-native';
+import { Calendar, User, Phone, FileText, DollarSign, Search, ChevronRight, AlertTriangle, Ban } from 'lucide-react-native';
+import { Member } from '@/types/member';
+import {
+  canCheckOutEquipment,
+  matchesMemberSearch,
+  memberStatusColor,
+  memberSubtitle,
+  membershipWarningText,
+} from '@/utils/memberUtils';
 
 export default function CheckoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -43,13 +51,10 @@ export default function CheckoutScreen() {
   const [selectedOfficer, setSelectedOfficer] = useState(dutyOfficers[0] || '');
   const [depositCollected, setDepositCollected] = useState(true);
   
-  // Filter members based on search
-  const filteredMembers = members.filter(member => {
-    return searchQuery === '' || 
-      member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.memberId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (member.phone && member.phone.includes(searchQuery));
-  });
+  // Filter members based on search; eligible (Active) members first
+  const filteredMembers = members
+    .filter(member => matchesMemberSearch(member, searchQuery))
+    .sort((a, b) => Number(canCheckOutEquipment(b)) - Number(canCheckOutEquipment(a)) || a.name.localeCompare(b.name));
   
   // Get selected member
   const selectedMember = members.find(m => m.id === selectedMemberId);
@@ -82,11 +87,19 @@ export default function CheckoutScreen() {
   
   const handleCheckout = () => {
     // Validate inputs
-    if (!selectedMemberId) {
+    if (!selectedMemberId || !selectedMember) {
       Alert.alert("Error", "Please select a member");
       return;
     }
-    
+
+    if (!canCheckOutEquipment(selectedMember)) {
+      Alert.alert(
+        "Not Eligible",
+        `${membershipWarningText(selectedMember)} Only Active members can check out equipment.`
+      );
+      return;
+    }
+
     if (!expectedReturnDate) {
       Alert.alert("Error", "Expected return date is required");
       return;
@@ -170,8 +183,15 @@ export default function CheckoutScreen() {
     });
   };
   
-  const handleSelectMember = (memberId: string) => {
-    setSelectedMemberId(memberId);
+  const handleSelectMember = (member: Member) => {
+    if (!canCheckOutEquipment(member)) {
+      Alert.alert(
+        "Not Eligible",
+        `${membershipWarningText(member)} Only Active members can check out equipment.`
+      );
+      return;
+    }
+    setSelectedMemberId(member.id);
     setShowMemberSearch(false);
   };
   
@@ -242,7 +262,7 @@ export default function CheckoutScreen() {
             <View style={styles.selectedMemberContainer}>
               <View style={styles.selectedMemberInfo}>
                 <Text style={styles.selectedMemberName}>{selectedMember.name}</Text>
-                <Text style={styles.selectedMemberId}>ID: {selectedMember.memberId}</Text>
+                <Text style={styles.selectedMemberId}>{memberSubtitle(selectedMember)}</Text>
                 {selectedMember.phone && (
                   <Text style={styles.selectedMemberPhone}>
                     Phone: {selectedMember.phone}
@@ -288,18 +308,30 @@ export default function CheckoutScreen() {
               keyExtractor={(item) => item.id}
               style={styles.membersList}
               contentContainerStyle={styles.membersListContent}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.memberItem}
-                  onPress={() => handleSelectMember(item.id)}
-                >
-                  <View>
-                    <Text style={styles.memberItemName}>{item.name}</Text>
-                    <Text style={styles.memberItemId}>ID: {item.memberId}</Text>
-                  </View>
-                  <ChevronRight size={20} color={Colors.light.subtext} />
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const eligible = canCheckOutEquipment(item);
+                return (
+                  <TouchableOpacity
+                    style={[styles.memberItem, !eligible && styles.memberItemIneligible]}
+                    onPress={() => handleSelectMember(item)}
+                  >
+                    <View style={styles.memberItemText}>
+                      <Text style={[styles.memberItemName, !eligible && styles.memberItemNameIneligible]}>{item.name}</Text>
+                      <Text style={styles.memberItemId}>{memberSubtitle(item)}</Text>
+                      {!eligible && (
+                        <Text style={[styles.memberItemStatus, { color: memberStatusColor(item.status) }]}>
+                          {item.status}: not eligible for equipment
+                        </Text>
+                      )}
+                    </View>
+                    {eligible ? (
+                      <ChevronRight size={20} color={Colors.light.subtext} />
+                    ) : (
+                      <Ban size={20} color={memberStatusColor(item.status)} />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
               ListEmptyComponent={
                 <View style={styles.emptyMembersList}>
                   <Text style={styles.emptyMembersText}>
@@ -723,6 +755,21 @@ const styles = StyleSheet.create({
   memberItemId: {
     fontSize: 14,
     color: Colors.light.subtext,
+  },
+  memberItemText: {
+    flex: 1,
+    marginRight: 8,
+  },
+  memberItemIneligible: {
+    opacity: 0.6,
+  },
+  memberItemNameIneligible: {
+    color: Colors.light.subtext,
+  },
+  memberItemStatus: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
   },
   emptyMembersList: {
     padding: 16,

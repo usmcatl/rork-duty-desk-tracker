@@ -44,7 +44,7 @@ export interface Member {
   email: string;
   address?: string;
   notes?: string;
-  joinDate: Date;
+  joinDate?: Date; // Contacts without a year label (e.g. PUFL) have none
   dateOfBirth?: Date;
   branch?: MemberBranch;
   status: MemberStatus;
@@ -52,6 +52,10 @@ export interface Member {
   associatedMembers?: string[]; // Array of member IDs
   addedBy?: string; // Duty officer who added this member
   involvementInterests?: InvolvementInterest[]; // Areas they want to get involved with
+  // Set for members synced from the Post's Google Contacts (the master roster)
+  source?: 'google-contacts';
+  membershipYears?: number[];
+  membershipLabels?: string[];
 }
 
 export interface MemberFormData {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Alert, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
+import { memberSubtitle } from '@/utils/memberUtils';
 import { useEquipmentStore } from '@/store/equipmentStore';
 import { usePackageStore } from '@/store/packageStore';
 import { useMemberStore } from '@/store/memberStore';
@@ -574,7 +575,7 @@ export default function DashboardScreen() {
                             <Text style={styles.memberItemName}>
                               {formatMemberDisplay(member)}
                             </Text>
-                            <Text style={styles.memberItemId}>ID: {member.memberId}</Text>
+                            <Text style={styles.memberItemId}>{memberSubtitle(member)}</Text>
                           </View>
                         </View>
                         <ChevronRight size={20} color={Colors.light.subtext} />

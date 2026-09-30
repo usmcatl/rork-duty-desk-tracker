@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import Colors from '@/constants/colors';
+import { memberSubtitle } from '@/utils/memberUtils';
 import { useEquipmentStore } from '@/store/equipmentStore';
 import { useMemberStore } from '@/store/memberStore';
 import Button from '@/components/Button';
@@ -303,7 +304,7 @@ Deposit not returned reason: ${returnReason.trim()}`;
             </Text>
             {member && (
               <>
-                <Text style={styles.memberId}>ID: {member.memberId}</Text>
+                <Text style={styles.memberId}>{memberSubtitle(member)}</Text>
                 {member.phone && (
                   <Text style={styles.memberPhone}>Phone: {member.phone}</Text>
                 )}

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import Colors from '@/constants/colors';
+import { matchesMemberSearch, memberSubtitle } from '@/utils/memberUtils';
 import { useMemberStore } from '@/store/memberStore';
 import { useEquipmentStore } from '@/store/equipmentStore';
 import Button from '@/components/Button';
@@ -84,7 +85,7 @@ export default function EditMemberScreen() {
       setEmail(member.email || '');
       setAddress(member.address || '');
       setNotes(member.notes || '');
-      setJoinDate(new Date(member.joinDate));
+      setJoinDate(member.joinDate ? new Date(member.joinDate) : new Date());
       setDateOfBirth(member.dateOfBirth ? new Date(member.dateOfBirth) : undefined);
       setBranch(member.branch);
       setStatus(member.status);
@@ -111,47 +112,56 @@ export default function EditMemberScreen() {
   };
   
   const handleUpdateMember = () => {
+    const original = getMemberById(id);
+    if (!original) return;
+    // Members from the Post's Google Contacts may not have an ID or email yet.
+    const fromContacts = original.source === 'google-contacts';
+
     // Validate inputs
-    if (!memberId.trim()) {
+    if (!memberId.trim() && !fromContacts) {
       Alert.alert('Error', 'Member ID is required');
       return;
     }
-    
+
     if (!name.trim()) {
       Alert.alert('Error', 'Name is required');
       return;
     }
-    
-    if (!email.trim()) {
+
+    if (!email.trim() && !fromContacts) {
       Alert.alert('Error', 'Email is required');
       return;
     }
-    
+
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
+    if (email.trim() && !emailRegex.test(email.trim())) {
       Alert.alert('Error', 'Please enter a valid email address');
       return;
     }
-    
+
     // Check if member ID already exists (but ignore the current member)
-    const existingMember = members.find(m => m.memberId === memberId.trim() && m.id !== id);
+    const existingMember = memberId.trim()
+      ? members.find(m => m.memberId === memberId.trim() && m.id !== id)
+      : undefined;
     if (existingMember) {
-      Alert.alert('Error', 'A member with this ID already exists');
+      Alert.alert('Error', `Member ID ${memberId.trim()} already belongs to ${existingMember.name}`);
       return;
     }
-    
+
     // Process aliases
-    const aliasArray = aliases.trim() 
+    const aliasArray = aliases.trim()
       ? aliases.split(',').map(alias => alias.trim()).filter(Boolean)
       : undefined;
-    
-    // Update member
+
+    // Update member, keeping fields this form doesn't edit (associations,
+    // Google Contacts membership data)
     updateMember({
+      ...original,
       id,
       memberId: memberId.trim(),
       name: name.trim(),
-      ...(aliasArray && aliasArray.length > 0 && { aliases: aliasArray }),
+      aliases: aliasArray && aliasArray.length > 0 ? aliasArray : undefined,
       phone: phone.trim(),
       email: email.trim(),
       address: address.trim() || undefined,
@@ -178,8 +188,7 @@ export default function EditMemberScreen() {
       const filtered = members.filter(member => 
         member.id !== id && 
         !currentAssociatedIds.includes(member.id) &&
-        (member.name.toLowerCase().includes(query.toLowerCase()) ||
-         member.memberId.toLowerCase().includes(query.toLowerCase()))
+        matchesMemberSearch(member, query)
       );
       setFilteredMembers(filtered);
     } else {
@@ -530,7 +539,7 @@ export default function EditMemberScreen() {
                         <Text style={styles.memberDropdownName}>
                           {formatMemberDisplay(item)}
                         </Text>
-                        <Text style={styles.memberDropdownId}>ID: {item.memberId}</Text>
+                        <Text style={styles.memberDropdownId}>{memberSubtitle(item)}</Text>
                       </View>
                     </TouchableOpacity>
                   ))}

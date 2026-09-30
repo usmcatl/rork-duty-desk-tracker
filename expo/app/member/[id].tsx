@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import Colors from '@/constants/colors';
+import { memberStatusColor, memberSubtitle } from '@/utils/memberUtils';
+import { MemberStatus } from '@/types/member';
 import { useMemberStore } from '@/store/memberStore';
 import { useEquipmentStore } from '@/store/equipmentStore';
 import { usePackageStore } from '@/store/packageStore';
@@ -83,6 +85,17 @@ export default function MemberDetailScreen() {
   };
   
   const handleDeleteMember = () => {
+    // The Post's Google Contacts is the master roster; a deleted copy would
+    // just come back on the next daily contacts sync.
+    if (member?.source === 'google-contacts') {
+      Alert.alert(
+        "Managed in Google Contacts",
+        "This member comes from the Post's Google Contacts. To remove them or change their membership, update their contact (labels) in americanlegionchapala@gmail.com. The app updates automatically.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
     // Check if member has active checkouts or pending packages
     if (activeCheckouts.length > 0 || pendingPackages.length > 0) {
       Alert.alert(
@@ -163,9 +176,7 @@ export default function MemberDetailScreen() {
     return display;
   };
   
-  const getStatusColor = (status: string) => {
-    return status === 'Active' ? Colors.light.primary : Colors.light.subtext;
-  };
+  const getStatusColor = (status: MemberStatus) => memberStatusColor(status);
   
   const calculateAge = (dateOfBirth: Date) => {
     const today = new Date();
@@ -216,7 +227,7 @@ export default function MemberDetailScreen() {
           
           <View style={styles.profileInfo}>
             <Text style={styles.memberName}>{formatMemberDisplay(member)}</Text>
-            <Text style={styles.memberId}>Member ID: {member.memberId}</Text>
+            <Text style={styles.memberId}>Member ID: {member.memberId || "Not assigned yet"}</Text>
             <View style={styles.statusContainer}>
               <Text style={[styles.statusText, { color: getStatusColor(member.status) }]}>
                 {member.status}
@@ -225,7 +236,20 @@ export default function MemberDetailScreen() {
             </View>
           </View>
         </View>
-        
+
+        <View style={[styles.eligibilityBanner, { borderColor: getStatusColor(member.status) }]}>
+          <Text style={[styles.eligibilityText, { color: getStatusColor(member.status) }]}>
+            {member.status === 'Active'
+              ? 'Current member: may check out equipment and receive packages.'
+              : `${member.status}: membership not current. Not eligible to check out equipment; packages can still be logged.`}
+          </Text>
+          {member.membershipLabels && member.membershipLabels.length > 0 && (
+            <Text style={styles.eligibilitySource}>
+              From Post contacts: {member.membershipLabels.join(', ')}
+            </Text>
+          )}
+        </View>
+
         <View style={styles.contactActions}>
           {member.phone && (
             <TouchableOpacity 
@@ -326,8 +350,14 @@ export default function MemberDetailScreen() {
           <View style={styles.detailItem}>
             <Calendar size={20} color={Colors.light.primary} />
             <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Join Date</Text>
-              <Text style={styles.detailValue}>{formatDate(member.joinDate)}</Text>
+              <Text style={styles.detailLabel}>{member.source === 'google-contacts' ? 'Member Since' : 'Join Date'}</Text>
+              <Text style={styles.detailValue}>
+                {!member.joinDate
+                  ? 'Not recorded'
+                  : member.source === 'google-contacts'
+                    ? new Date(member.joinDate).getUTCFullYear()
+                    : formatDate(member.joinDate)}
+              </Text>
             </View>
           </View>
           
@@ -376,7 +406,7 @@ export default function MemberDetailScreen() {
                       {formatMemberDisplay(associatedMember)}
                     </Text>
                     <Text style={styles.associatedMemberInfo}>
-                      ID: {associatedMember.memberId}
+                      {memberSubtitle(associatedMember)}
                     </Text>
                   </View>
                 </View>
@@ -542,6 +572,22 @@ const styles = StyleSheet.create({
     color: Colors.light.primary,
     fontWeight: '500',
     marginBottom: 4,
+  },
+  eligibilityBanner: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    backgroundColor: Colors.light.card,
+  },
+  eligibilityText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  eligibilitySource: {
+    fontSize: 13,
+    color: Colors.light.subtext,
+    marginTop: 6,
   },
   statusContainer: {
     flexDirection: 'row',
