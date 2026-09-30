@@ -80,6 +80,8 @@ function doPost(e) {
         return json_(sync_(request));
       case 'photo':
         return json_(savePhoto_(request));
+      case 'importRoster':
+        return json_(importRoster_(request));
       default:
         return json_({ ok: false, error: 'Unknown action: ' + request.action });
     }
@@ -452,6 +454,160 @@ function pushMemberIdsToContacts_(changes) {
       Logger.log('Member ID write-back failed for ' + change.id + ': ' + err);
     }
   });
+}
+
+/* ---------------------------------------------------------------------------
+ * National HQ roster import
+ *
+ * Matches rows of the Legion HQ roster to the Post's contacts and writes each
+ * member ID into the contact's notes. HQ emails and phones are used only to
+ * find the contact; they never overwrite contact details. Also reports where
+ * HQ's paid-through year disagrees with the contact's year labels.
+ * request: { rows: [{ memberId, name, email, phone, paidThrough, status }], apply: bool }
+ * ------------------------------------------------------------------------- */
+
+var POST_EMAIL = 'americanlegionchapala@gmail.com';
+
+function importRoster_(request) {
+  var rows = request.rows || [];
+  var apply = request.apply === true;
+
+  var groupNames = {};
+  var pageToken;
+  do {
+    var groups = People.ContactGroups.list({ pageSize: 1000, pageToken: pageToken });
+    (groups.contactGroups || []).forEach(function (group) {
+      groupNames[group.resourceName] = group.formattedName || group.name;
+    });
+    pageToken = groups.nextPageToken;
+  } while (pageToken);
+
+  var contacts = [];
+  pageToken = undefined;
+  do {
+    var page = People.People.Connections.list('people/me', {
+      pageSize: 1000,
+      pageToken: pageToken,
+      personFields: 'names,emailAddresses,phoneNumbers,biographies,memberships'
+    });
+    (page.connections || []).forEach(function (person) {
+      var labels = (person.memberships || [])
+        .map(function (m) { return m.contactGroupMembership && groupNames[m.contactGroupMembership.contactGroupResourceName]; })
+        .filter(function (name) { return name; });
+      var years = labels.map(function (l) { var m = /^(\d{4})\b/.exec(l); return m ? Number(m[1]) : 0; }).filter(Boolean);
+      var names = (person.names || [])[0] || {};
+      var notes = ((person.biographies || [])[0] || {}).value || '';
+      var idMatch = /Member\s*(?:ID|#|No\.?|Number)\s*[:#]?\s*([A-Za-z0-9-]+)/i.exec(notes);
+      contacts.push({
+        person: person,
+        name: names.displayName || '',
+        nameTokens: nameTokens_([names.givenName, names.middleName, names.familyName, names.displayName].join(' ')),
+        familyTokens: nameTokens_(names.familyName || ''),
+        givenTokens: nameTokens_(names.givenName || ''),
+        emails: (person.emailAddresses || []).map(function (e) { return String(e.value || '').toLowerCase().trim(); })
+          .filter(function (e) { return e && e !== POST_EMAIL; }),
+        phones: (person.phoneNumbers || []).map(function (p) { return phoneKey_(p.value); }).filter(Boolean),
+        maxYear: years.length ? Math.max.apply(null, years) : null,
+        lifetime: labels.some(function (l) { return String(l).toUpperCase() === 'PUFL'; }),
+        isMember: years.length > 0 || labels.some(function (l) { return String(l).toUpperCase() === 'PUFL'; }),
+        memberId: idMatch ? idMatch[1] : ''
+      });
+    });
+    pageToken = page.nextPageToken;
+  } while (pageToken);
+
+  var report = [];
+  var written = 0;
+  rows.forEach(function (row) {
+    var result = { memberId: row.memberId, name: row.name, hqPaidThrough: row.paidThrough, hqStatus: row.status };
+    var match = findRosterContact_(row, contacts);
+    result.match = match.method;
+    if (match.candidates) result.candidates = match.candidates;
+    if (!match.contact) {
+      report.push(result);
+      return;
+    }
+    var c = match.contact;
+    result.contact = c.name;
+    result.contactIsMember = c.isMember;
+    result.contactMaxYear = c.maxYear;
+    result.contactLifetime = c.lifetime;
+    result.previousId = c.memberId;
+    result.action = c.memberId === row.memberId ? 'already-set' : (c.memberId ? 'replace' : 'add');
+
+    if (apply && result.action !== 'already-set') {
+      try {
+        c.person = People.People.get(c.person.resourceName, { personFields: 'biographies' });
+        writeMemberIdToContact_(c.person, row.memberId);
+        c.memberId = row.memberId;
+        written++;
+        Utilities.sleep(700); // stay under the People API write rate limit
+      } catch (err) {
+        result.action = 'error';
+        result.error = String(err && err.message ? err.message : err);
+      }
+    }
+    report.push(result);
+  });
+
+  var refresh = null;
+  if (apply && written) {
+    refresh = syncMembersFromContacts_(); // caller (doPost) already holds the script lock
+  }
+  return { ok: true, applied: apply, written: written, refresh: refresh, report: report };
+}
+
+function findRosterContact_(row, contacts) {
+  // HQ names are "Last, [Suffix,] First [Middle]".
+  var parts = String(row.name || '').split(',');
+  var last = nameTokens_(parts[0]);
+  var first = nameTokens_(parts[parts.length - 1])[0];
+  var lastMatches = function (c) {
+    return last.length > 0 && last.every(function (t) { return c.familyTokens.indexOf(t) !== -1 || c.nameTokens.indexOf(t) !== -1; });
+  };
+
+  // An email or phone match must also agree on the last name; HQ data has
+  // shared and mistyped emails that would otherwise land on the wrong person.
+  var email = String(row.email || '').toLowerCase().trim();
+  if (email && email !== POST_EMAIL) {
+    var byEmail = contacts.filter(function (c) { return c.emails.indexOf(email) !== -1; });
+    if (byEmail.length === 1) {
+      return lastMatches(byEmail[0])
+        ? { contact: byEmail[0], method: 'email' }
+        : { method: 'email-name-mismatch', candidates: [byEmail[0].name] };
+    }
+  }
+  var phone = phoneKey_(row.phone);
+  if (phone) {
+    var byPhone = contacts.filter(function (c) { return c.phones.indexOf(phone) !== -1; });
+    if (byPhone.length === 1 && lastMatches(byPhone[0])) return { contact: byPhone[0], method: 'phone' };
+  }
+
+  if (!last.length || !first) return { method: 'not-found' };
+  var byName = contacts.filter(function (c) {
+    var firstOk = c.givenTokens.indexOf(first) !== -1 || c.nameTokens.indexOf(first) !== -1;
+    return lastMatches(c) && firstOk;
+  });
+  if (byName.length === 1) return { contact: byName[0], method: 'name' };
+  if (byName.length > 1) {
+    // Prefer the one labelled as a member if exactly one is.
+    var members = byName.filter(function (c) { return c.isMember; });
+    if (members.length === 1) return { contact: members[0], method: 'name' };
+    return { method: 'ambiguous', candidates: byName.map(function (c) { return c.name; }) };
+  }
+  return { method: 'not-found' };
+}
+
+function nameTokens_(text) {
+  var suffixes = { jr: 1, sr: 1, ii: 1, iii: 1, iv: 1 };
+  return String(text || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z\s-]/g, ' ').split(/[\s-]+/)
+    .filter(function (t) { return t.length > 1 && !suffixes[t]; });
+}
+
+function phoneKey_(value) {
+  var digits = String(value || '').replace(/\D/g, '');
+  return digits.length >= 10 ? digits.slice(-10) : '';
 }
 
 /** JSON.stringify with sorted keys, so key order never counts as a change. */
