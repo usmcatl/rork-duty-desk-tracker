@@ -20,7 +20,7 @@ const CONTACTS_ROSTER_MESSAGE =
 import { useMemberStore } from '@/store/memberStore';
 import EmptyState from '@/components/EmptyState';
 import Button from '@/components/Button';
-import { Plus, Search, Filter, User, Phone, Calendar, ChevronRight, Users, RefreshCw, Shield, Activity, AlertTriangle } from 'lucide-react-native';
+import { Plus, Search, Filter, User, Phone, Calendar, ChevronRight, Users, RefreshCw, Check, Shield, Activity, AlertTriangle } from 'lucide-react-native';
 
 export default function MembersScreen() {
   const router = useRouter();
@@ -28,11 +28,14 @@ export default function MembersScreen() {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [showAdvisoryDialog, setShowAdvisoryDialog] = useState(false);
-  
+  // View filter only: hides non-Active members from the list, changes no data.
+  const [activeOnly, setActiveOnly] = useState(false);
+
   const { syncNow, isSyncing, endpointUrl } = useSyncStore();
 
-  // Filter members based on search
+  // Filter members based on search (and the Active only toggle)
   const filteredMembers = members.filter(member => {
+    if (activeOnly && member.status !== 'Active') return false;
     const q = searchQuery.toLowerCase();
     return matchesMemberSearch(member, searchQuery) ||
       (member.branch && member.branch.toLowerCase().includes(q)) ||
@@ -191,6 +194,16 @@ export default function MembersScreen() {
           <RefreshCw size={16} color={Colors.light.primary} />
           <Text style={styles.actionButtonText}>{isSyncing ? 'Syncing...' : 'Sync Now'}</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, activeOnly && styles.toggleOnButton]}
+          onPress={() => setActiveOnly(!activeOnly)}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: activeOnly }}
+        >
+          <Check size={16} color={activeOnly ? '#fff' : Colors.light.primary} />
+          <Text style={[styles.actionButtonText, activeOnly && styles.toggleOnText]}>Active only</Text>
+        </TouchableOpacity>
       </View>
       
       <ScrollView 
@@ -201,7 +214,7 @@ export default function MembersScreen() {
         {filteredMembers.length > 0 ? (
           <>
             <Text style={styles.resultsText}>
-              {filteredMembers.length} member{filteredMembers.length !== 1 ? 's' : ''} found
+              {filteredMembers.length} {activeOnly ? 'active ' : ''}member{filteredMembers.length !== 1 ? 's' : ''} found
             </Text>
             
             {filteredMembers.map(member => (
@@ -325,6 +338,13 @@ const styles = StyleSheet.create({
   },
   disabledActionButtonText: {
     color: Colors.light.subtext,
+  },
+  toggleOnButton: {
+    backgroundColor: Colors.light.success,
+  },
+  toggleOnText: {
+    color: '#fff',
+    fontWeight: '600',
   },
   scrollView: {
     flex: 1,

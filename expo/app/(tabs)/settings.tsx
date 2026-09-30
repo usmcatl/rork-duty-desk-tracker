@@ -17,6 +17,7 @@ import { useShiftStore } from '@/store/shiftStore';
 import { usePackageStore } from '@/store/packageStore';
 import Button from '@/components/Button';
 import SheetSyncCard from '@/components/SheetSyncCard';
+import AppUpdateCard from '@/components/AppUpdateCard';
 import { useSyncStore } from '@/store/syncStore';
 import { 
   Settings, 
@@ -403,6 +404,8 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Data Management</Text>
           
           <SheetSyncCard />
+          
+          <AppUpdateCard />
           
           
           <TouchableOpacity 

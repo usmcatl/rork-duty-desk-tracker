@@ -76,6 +76,14 @@ This creates a GitHub Release tagged `v<version>` with the APK attached, which b
 [latest release](https://github.com/usmcatl/duty-desk-tracker/releases/latest) download. It needs
 the GitHub CLI (`winget install GitHub.cli`), signed in once with `gh auth login`.
 
+Tablets update themselves from that release: **Settings → App Updates → Check for Updates**
+downloads the new APK and opens Android's installer (data and sync settings are kept). The first
+time, Android asks to allow installing apps from Duty Desk Tracker. The repository must stay public
+for this to work without credentials.
+
+**Release checklist:** bump `version` and `android.versionCode` in `expo/app.json`, commit and push,
+`npm run build:apk`, then `npm run release`.
+
 Before building a new version for tablets that already have the app, bump `version` and
 `android.versionCode` in `expo/app.json`. Android only installs an update over the old app when
 the versionCode is higher.
