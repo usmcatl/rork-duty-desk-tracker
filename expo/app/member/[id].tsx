@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import Colors from '@/constants/colors';
-import { memberStatusColor, memberSubtitle } from '@/utils/memberUtils';
+import { memberStatusColor, memberSubtitle, membershipSummary } from '@/utils/memberUtils';
 import { MemberStatus } from '@/types/member';
 import { useMemberStore } from '@/store/memberStore';
 import { useEquipmentStore } from '@/store/equipmentStore';
@@ -239,15 +239,8 @@ export default function MemberDetailScreen() {
 
         <View style={[styles.eligibilityBanner, { borderColor: getStatusColor(member.status) }]}>
           <Text style={[styles.eligibilityText, { color: getStatusColor(member.status) }]}>
-            {member.status === 'Active'
-              ? 'Current member: may check out equipment and receive packages.'
-              : `${member.status}: membership not current. Not eligible to check out equipment; packages can still be logged.`}
+            {membershipSummary(member)}
           </Text>
-          {member.membershipLabels && member.membershipLabels.length > 0 && (
-            <Text style={styles.eligibilitySource}>
-              From Post contacts: {member.membershipLabels.join(', ')}
-            </Text>
-          )}
         </View>
 
         <View style={styles.contactActions}>
@@ -583,11 +576,6 @@ const styles = StyleSheet.create({
   eligibilityText: {
     fontSize: 15,
     fontWeight: '600',
-  },
-  eligibilitySource: {
-    fontSize: 13,
-    color: Colors.light.subtext,
-    marginTop: 6,
   },
   statusContainer: {
     flexDirection: 'row',

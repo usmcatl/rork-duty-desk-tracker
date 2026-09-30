@@ -1,9 +1,21 @@
 import React from "react";
+import { Platform, StatusBar } from "react-native";
 import { Tabs } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { Home, Package, Settings, Users, Package2 } from "lucide-react-native";
 
+// Extra room below the Android status bar so header icons don't crowd it (~5 mm).
+const HEADER_TOP_GAP = 16;
+
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+  // On Android 15 the status bar is drawn over the app; use whichever
+  // measurement of it is larger so the header always starts below it.
+  const statusBarHeight = Platform.OS === 'android'
+    ? Math.max(insets.top, StatusBar.currentHeight ?? 0)
+    : insets.top;
+
   return (
     <Tabs
       screenOptions={{
@@ -23,6 +35,7 @@ export default function TabLayout() {
           color: Colors.light.text,
         },
         headerShadowVisible: false,
+        headerStatusBarHeight: statusBarHeight + HEADER_TOP_GAP,
       }}
     >
       <Tabs.Screen

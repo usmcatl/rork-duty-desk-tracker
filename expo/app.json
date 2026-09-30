@@ -2,7 +2,7 @@
   "expo": {
     "name": "Duty Desk Tracker",
     "slug": "duty-desk-tracker",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "dutydesk",
@@ -23,7 +23,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "org.legionpost7.dutydesk",
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.USE_BIOMETRIC",
