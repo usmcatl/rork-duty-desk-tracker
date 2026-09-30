@@ -42,6 +42,8 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Dashboard",
+          // The Dashboard draws its own branded header (logo + Post title).
+          headerShown: false,
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Alert, Modal } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Alert, Modal, Image, Platform, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
 import { memberSubtitle } from '@/utils/memberUtils';
 import { useEquipmentStore } from '@/store/equipmentStore';
@@ -12,8 +13,17 @@ import PackageCard from '@/components/PackageCard';
 import Button from '@/components/Button';
 import { Plus, Package, CheckSquare, Search, User, Users, ChevronRight, X, Package2, Clock, UserPlus, Settings, AlertTriangle, Calendar, Tablet, RefreshCw } from 'lucide-react-native';
 
+const LEGION_LOGO = require('@/assets/images/american-legion-logo.png');
+const LOGO_ASPECT_RATIO = 870 / 340;
+
 export default function DashboardScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  // Same status bar clearance as the other tabs' headers.
+  const topInset = Platform.OS === 'android'
+    ? Math.max(insets.top, StatusBar.currentHeight ?? 0)
+    : insets.top;
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   const { equipment, checkoutRecords, getOverdueEquipment } = useEquipmentStore();
   const { packages } = usePackageStore();
   const { members, getMemberById } = useMemberStore();
@@ -31,6 +41,7 @@ export default function DashboardScreen() {
   const checkedOutEquipment = equipment.filter(item => item.status === 'checked-out');
   const pendingPackages = packages.filter(pkg => pkg.status === 'pending');
   const pickedUpPackages = packages.filter(pkg => pkg.status === 'picked-up');
+  const activeMemberCount = members.filter(member => member.status === 'Active').length;
   
   // Get overdue equipment
   const overdueEquipment = getOverdueEquipment();
@@ -324,11 +335,28 @@ export default function DashboardScreen() {
         </View>
       </Modal>
       
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingTop: topInset + 16 }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Brand header */}
+        <View style={styles.brandHeader}>
+          <Image
+            source={LEGION_LOGO}
+            style={styles.brandLogo}
+            resizeMode="contain"
+            accessibilityLabel="American Legion"
+          />
+          <Text style={styles.brandTitle}>Chapala Post 7 Duty Desk Tracker</Text>
+          <View style={styles.brandStripe}>
+            <View style={[styles.brandStripeSegment, { backgroundColor: Colors.light.flagRed }]} />
+            <View style={[styles.brandStripeSegment, styles.brandStripeWhite]} />
+            <View style={[styles.brandStripeSegment, { backgroundColor: Colors.light.primary }]} />
+          </View>
+          <Text style={styles.brandDate}>{today}</Text>
+        </View>
+
         {/* Current Shift Status */}
         {currentShift && (
           <View style={styles.shiftStatusCard}>
@@ -355,29 +383,41 @@ export default function DashboardScreen() {
         
         {/* Stats Section */}
         <View style={styles.statsContainer}>
-          <View style={[styles.statCard, styles.availableStat]}>
-            <Package size={24} color={Colors.light.success} />
+          <TouchableOpacity
+            style={[styles.statCard, { borderTopColor: Colors.light.success }]}
+            onPress={() => router.push('/equipment')}
+          >
+            <Package size={22} color={Colors.light.success} />
             <Text style={styles.statNumber}>{availableEquipment.length}</Text>
             <Text style={styles.statLabel}>Available</Text>
-          </View>
-          
-          <View style={[styles.statCard, styles.checkedOutStat]}>
-            <CheckSquare size={24} color={Colors.light.flagRed} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.statCard, { borderTopColor: Colors.light.flagRed }]}
+            onPress={() => router.push('/equipment')}
+          >
+            <CheckSquare size={22} color={Colors.light.flagRed} />
             <Text style={styles.statNumber}>{checkedOutEquipment.length}</Text>
             <Text style={styles.statLabel}>Checked Out</Text>
-          </View>
-          
-          <View style={[styles.statCard, styles.packagesStat]}>
-            <Package2 size={24} color={Colors.light.primary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.statCard, { borderTopColor: Colors.light.primary }]}
+            onPress={() => router.push('/packages')}
+          >
+            <Package2 size={22} color={Colors.light.primary} />
             <Text style={styles.statNumber}>{pendingPackages.length}</Text>
-            <Text style={styles.statLabel}>Packages</Text>
-          </View>
-          
-          <View style={[styles.statCard, styles.membersStat]}>
-            <Users size={24} color={Colors.light.primary} />
-            <Text style={styles.statNumber}>{members.length}</Text>
-            <Text style={styles.statLabel}>Members</Text>
-          </View>
+            <Text style={styles.statLabel}>Packages Waiting</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.statCard, { borderTopColor: Colors.light.primary }]}
+            onPress={() => router.push('/members')}
+          >
+            <Users size={22} color={Colors.light.primary} />
+            <Text style={styles.statNumber}>{activeMemberCount}</Text>
+            <Text style={styles.statLabel}>Active Members</Text>
+          </TouchableOpacity>
         </View>
         
         {/* Recent Activity Section */}
@@ -707,6 +747,45 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 80,
   },
+  brandHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  brandLogo: {
+    width: '78%',
+    maxWidth: 360,
+    aspectRatio: LOGO_ASPECT_RATIO,
+  },
+  brandTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.light.primary,
+    textAlign: 'center',
+    letterSpacing: 0.3,
+    marginTop: 4,
+  },
+  brandStripe: {
+    flexDirection: 'row',
+    width: 120,
+    height: 4,
+    marginTop: 10,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  brandStripeSegment: {
+    flex: 1,
+  },
+  brandStripeWhite: {
+    backgroundColor: Colors.light.background,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  brandDate: {
+    fontSize: 13,
+    color: Colors.light.subtext,
+    marginTop: 8,
+  },
   shiftStatusCard: {
     backgroundColor: Colors.light.card,
     borderRadius: 12,
@@ -768,35 +847,29 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 6,
     borderRadius: 12,
-    marginHorizontal: 2,
-    shadowColor: Colors.light.shadow,
+    marginHorizontal: 3,
+    backgroundColor: Colors.light.background,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    borderTopWidth: 4,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
+    shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
   },
-  availableStat: {
-    backgroundColor: 'rgba(40, 167, 69, 0.1)',
-  },
-  checkedOutStat: {
-    backgroundColor: 'rgba(220, 20, 60, 0.1)',
-  },
-  packagesStat: {
-    backgroundColor: 'rgba(0, 40, 104, 0.1)',
-  },
-  membersStat: {
-    backgroundColor: 'rgba(0, 40, 104, 0.1)',
-  },
   statNumber: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.light.text,
-    marginVertical: 4,
+    fontSize: 28,
+    fontWeight: '800',
+    color: Colors.light.primary,
+    marginVertical: 2,
   },
   statLabel: {
     fontSize: 12,
+    fontWeight: '500',
     color: Colors.light.subtext,
     textAlign: 'center',
   },
@@ -805,9 +878,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: Colors.light.text,
+    fontWeight: '700',
+    color: Colors.light.primary,
     marginBottom: 12,
+    paddingLeft: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.light.flagRed,
   },
   dueSoonContainer: {
     backgroundColor: 'rgba(220, 20, 60, 0.05)',
