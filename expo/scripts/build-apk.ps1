@@ -40,6 +40,12 @@ try {
     foreach ($dir in $staleBuildDirs) {
         cmd /c rd /s /q "\\?\$($dir.FullName)" 2>$null
     }
+    # The generated android project is recreated by prebuild; an interrupted
+    # build can leave paths too deep for prebuild's own cleanup to remove.
+    $androidDir = Join-Path $projectDir 'android'
+    if (Test-Path $androidDir) {
+        cmd /c rd /s /q "\\?\$androidDir" 2>$null
+    }
 
     Write-Host "Generating native Android project..."
     npx expo prebuild --platform android --clean
