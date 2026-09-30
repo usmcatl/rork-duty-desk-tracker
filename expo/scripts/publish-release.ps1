@@ -31,10 +31,22 @@ try {
     $notes = @"
 Duty Desk Tracker $tag for American Legion Post 7.
 
-**Install:** download DutyDeskTracker-$tag.apk below, open it on the tablet, allow "Install unknown apps" if asked, then tap Install. It installs over earlier versions and keeps all data.
+**Update a tablet:** Settings > App Updates > Check for Updates.
+
+**First install:** download DutyDeskTracker-$tag.apk below, open it on the tablet, allow installing unknown apps if asked, then tap Install. It installs over earlier versions and keeps all data.
 "@
-    & $gh release create $tag $apk --target main --title "Duty Desk Tracker $tag" --notes $notes
-    if ($LASTEXITCODE -ne 0) { throw 'Creating the GitHub release failed' }
+    # Pass notes via a file: Windows PowerShell mangles quotes in native command arguments.
+    $notesFile = Join-Path $env:TEMP "dutydesk-release-notes.md"
+    Set-Content -Path $notesFile -Value $notes -Encoding UTF8
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $gh release create $tag $apk --target main --title "Duty Desk Tracker $tag" --notes-file $notesFile
+        $created = $LASTEXITCODE -eq 0
+        $ErrorActionPreference = 'Stop'
+    } finally {
+        Remove-Item $notesFile -ErrorAction SilentlyContinue
+    }
+    if (-not $created) { throw 'Creating the GitHub release failed (see the gh message above)' }
     Write-Host "Published: https://github.com/usmcatl/duty-desk-tracker/releases/tag/$tag"
 } finally {
     Pop-Location
