@@ -21,8 +21,12 @@ try {
     git fetch -q origin
     if ((git rev-parse HEAD) -ne (git rev-parse origin/main)) { throw 'Local main is not in sync with GitHub. Push (or pull) first.' }
 
+    # "release not found" on stderr is the normal case here, so don't let it stop the script.
+    $ErrorActionPreference = 'Continue'
     & $gh release view $tag *> $null
-    if ($LASTEXITCODE -eq 0) { throw "Release $tag already exists. Bump version and versionCode in expo/app.json for a new release." }
+    $exists = $LASTEXITCODE -eq 0
+    $ErrorActionPreference = 'Stop'
+    if ($exists) { throw "Release $tag already exists. Bump version and versionCode in expo/app.json for a new release." }
 
     $notes = @"
 Duty Desk Tracker $tag for American Legion Post 7.
