@@ -1,5 +1,5 @@
 /**
- * Duty Desk Tracker — Google Sheets sync endpoint.
+ * Duty Desk Tracker - Google Sheets sync endpoint.
  *
  * Paste this whole file into Extensions > Apps Script of the Google Sheet that
  * should hold the Post's data, run setup() once, then deploy as a web app.
@@ -600,7 +600,7 @@ function findRosterContact_(row, contacts) {
 
 function nameTokens_(text) {
   var suffixes = { jr: 1, sr: 1, ii: 1, iii: 1, iv: 1 };
-  return String(text || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return String(text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z\s-]/g, ' ').split(/[\s-]+/)
     .filter(function (t) { return t.length > 1 && !suffixes[t]; });
 }
