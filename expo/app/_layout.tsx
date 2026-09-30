@@ -4,6 +4,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useAutoSync } from "@/store/syncStore";
 
@@ -41,6 +42,10 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   useAutoSync();
+  // The app draws edge-to-edge: headers get the status bar inset from the
+  // system, and detail screens are padded above Android's navigation bar so
+  // bottom buttons stay reachable. The tab bar handles that inset itself.
+  const insets = useSafeAreaInsets();
 
   return (
     <>
@@ -55,10 +60,17 @@ function RootLayoutNav() {
           headerShadowVisible: false,
           contentStyle: {
             backgroundColor: Colors.light.background,
+            paddingBottom: insets.bottom,
           },
         }}
       >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="(tabs)"
+          options={{
+            headerShown: false,
+            contentStyle: { backgroundColor: Colors.light.background },
+          }}
+        />
         <Stack.Screen
           name="equipment/[id]"
           options={{

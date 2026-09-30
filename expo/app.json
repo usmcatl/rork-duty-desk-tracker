@@ -2,7 +2,7 @@
   "expo": {
     "name": "Duty Desk Tracker",
     "slug": "duty-desk-tracker",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "dutydesk",
@@ -23,7 +23,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "org.legionpost7.dutydesk",
-      "versionCode": 3,
+      "versionCode": 4,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.USE_BIOMETRIC",
@@ -34,7 +34,8 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.RECORD_AUDIO",
         "android.permission.SYSTEM_ALERT_WINDOW"
-      ]
+      ],
+      "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -60,7 +61,8 @@
         {
           "faceIDPermission": "Duty Desk Tracker uses Face ID to confirm the tablet changeover."
         }
-      ]
+      ],
+      "react-native-edge-to-edge"
     ],
     "experiments": {
       "typedRoutes": true
