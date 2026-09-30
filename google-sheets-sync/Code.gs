@@ -418,13 +418,24 @@ function memberFromContact_(person, groupNames, currentYear) {
 
 /**
  * Save a member ID into the contact's notes as a "Member ID: <id>" line,
- * replacing an existing one. Returns the updated notes text.
+ * replacing an existing one. altIds (optional) are extra current HQ IDs for
+ * the same person, kept on an "Also HQ ID:" line. Returns the updated notes.
  */
-function writeMemberIdToContact_(person, memberId) {
-  var notes = ((person.biographies || [])[0] || {}).value || '';
+function memberIdNotes_(notes, memberId, altIds) {
   var line = 'Member ID: ' + memberId;
   var pattern = /^.*Member\s*(?:ID|#|No\.?|Number)\s*[:#]?.*$/im;
   var updated = pattern.test(notes) ? notes.replace(pattern, line) : (notes ? notes + '\n' + line : line);
+  if (altIds && altIds.length) {
+    var altLine = 'Also HQ ID: ' + altIds.join(', ');
+    var altPattern = /^Also HQ ID:.*$/im;
+    updated = altPattern.test(updated) ? updated.replace(altPattern, altLine) : updated.replace(line, line + '\n' + altLine);
+  }
+  return updated;
+}
+
+function writeMemberIdToContact_(person, memberId, altIds) {
+  var notes = ((person.biographies || [])[0] || {}).value || '';
+  var updated = memberIdNotes_(notes, memberId, altIds);
   if (updated === notes) return notes;
 
   People.People.updateContact(
@@ -457,13 +468,22 @@ function pushMemberIdsToContacts_(changes) {
 }
 
 /* ---------------------------------------------------------------------------
- * National HQ roster import
+ * National HQ roster import (Legion and SAL)
  *
- * Matches rows of the Legion HQ roster to the Post's contacts and writes each
- * member ID into the contact's notes. HQ emails and phones are used only to
- * find the contact; they never overwrite contact details. Also reports where
- * HQ's paid-through year disagrees with the contact's year labels.
- * request: { rows: [{ memberId, name, email, phone, paidThrough, status }], apply: bool }
+ * The HQ roster is authoritative for who is a member. For each roster row:
+ *   - find the contact (email, then phone, then last+first name; an email or
+ *     phone match must agree on the last name, allowing small spelling
+ *     differences when the first name also matches);
+ *   - write the member ID into the contact's notes (extra current IDs go on
+ *     an "Also HQ ID:" line);
+ *   - add a year label for HQ's paid-through year when it is later than the
+ *     contact's latest year label (or the contact has none), the PUFL label
+ *     for HQ lifetime members, and the group label (General Membership / SAL);
+ *   - create a contact for roster members who have none.
+ * HQ emails and phones never overwrite existing contact details, and labels
+ * are only ever added, never removed.
+ * request: { rows: [{ roster, memberId, altIds, name, email, phone, type,
+ *            paidThrough, status }], apply: bool, refresh: bool }
  * ------------------------------------------------------------------------- */
 
 var POST_EMAIL = 'americanlegionchapala@gmail.com';
@@ -491,57 +511,82 @@ function importRoster_(request) {
       personFields: 'names,emailAddresses,phoneNumbers,biographies,memberships'
     });
     (page.connections || []).forEach(function (person) {
-      var labels = (person.memberships || [])
-        .map(function (m) { return m.contactGroupMembership && groupNames[m.contactGroupMembership.contactGroupResourceName]; })
-        .filter(function (name) { return name; });
-      var years = labels.map(function (l) { var m = /^(\d{4})\b/.exec(l); return m ? Number(m[1]) : 0; }).filter(Boolean);
-      var names = (person.names || [])[0] || {};
-      var notes = ((person.biographies || [])[0] || {}).value || '';
-      var idMatch = /Member\s*(?:ID|#|No\.?|Number)\s*[:#]?\s*([A-Za-z0-9-]+)/i.exec(notes);
-      contacts.push({
-        person: person,
-        name: names.displayName || '',
-        nameTokens: nameTokens_([names.givenName, names.middleName, names.familyName, names.displayName].join(' ')),
-        familyTokens: nameTokens_(names.familyName || ''),
-        givenTokens: nameTokens_(names.givenName || ''),
-        emails: (person.emailAddresses || []).map(function (e) { return String(e.value || '').toLowerCase().trim(); })
-          .filter(function (e) { return e && e !== POST_EMAIL; }),
-        phones: (person.phoneNumbers || []).map(function (p) { return phoneKey_(p.value); }).filter(Boolean),
-        maxYear: years.length ? Math.max.apply(null, years) : null,
-        lifetime: labels.some(function (l) { return String(l).toUpperCase() === 'PUFL'; }),
-        isMember: years.length > 0 || labels.some(function (l) { return String(l).toUpperCase() === 'PUFL'; }),
-        memberId: idMatch ? idMatch[1] : ''
-      });
+      contacts.push(rosterContact_(person, groupNames));
     });
     pageToken = page.nextPageToken;
   } while (pageToken);
 
+  var labelAdds = {}; // label name -> [person resourceName]
+  var queueLabel = function (label, resourceName) {
+    (labelAdds[label] = labelAdds[label] || []).push(resourceName);
+  };
+
   var report = [];
   var written = 0;
+  var created = 0;
   rows.forEach(function (row) {
-    var result = { memberId: row.memberId, name: row.name, hqPaidThrough: row.paidThrough, hqStatus: row.status };
+    var altIds = row.altIds || [];
+    var hqYear = Number(row.paidThrough) || null;
+    var groupLabel = row.roster === 'SAL' ? 'SAL' : 'General Membership';
+    var lifetime = /^PUFL/i.test(String(row.type || ''));
+    var yearLabel = hqYear ? yearLabelName_(hqYear, groupNames) : null;
+    var result = { roster: row.roster, memberId: row.memberId, altIds: altIds, name: row.name, hqPaidThrough: row.paidThrough, hqStatus: row.status };
+
     var match = findRosterContact_(row, contacts);
     result.match = match.method;
     if (match.candidates) result.candidates = match.candidates;
+
     if (!match.contact) {
+      if (match.method !== 'not-found') {
+        report.push(result); // ambiguous or someone else's email: left for a person to sort out
+        return;
+      }
+      result.action = 'create';
+      result.labelsAdded = [yearLabel, groupLabel, lifetime ? 'PUFL' : null, 'ALL'].filter(function (l) { return l; });
+      if (apply) {
+        try {
+          var person = People.People.createContact(newRosterContact_(row, altIds));
+          result.labelsAdded.forEach(function (label) { queueLabel(label, person.resourceName); });
+          contacts.push(rosterContact_(person, groupNames));
+          created++;
+          Utilities.sleep(1000); // People API write rate limit
+        } catch (err) {
+          result.action = 'error';
+          result.error = String(err && err.message ? err.message : err);
+        }
+      }
       report.push(result);
       return;
     }
+
     var c = match.contact;
     result.contact = c.name;
     result.contactIsMember = c.isMember;
     result.contactMaxYear = c.maxYear;
     result.contactLifetime = c.lifetime;
     result.previousId = c.memberId;
-    result.action = c.memberId === row.memberId ? 'already-set' : (c.memberId ? 'replace' : 'add');
 
-    if (apply && result.action !== 'already-set') {
+    var newNotes = memberIdNotes_(c.notes, row.memberId, altIds);
+    result.action = newNotes === c.notes ? 'already-set' : (c.memberId && c.memberId !== row.memberId ? 'replace' : 'add');
+    result.labelsAdded = [];
+    if (yearLabel && (c.maxYear === null || hqYear > c.maxYear)) result.labelsAdded.push(yearLabel);
+    if (lifetime && !c.lifetime) result.labelsAdded.push('PUFL');
+    if (c.labelsLower.indexOf(groupLabel.toLowerCase()) === -1) result.labelsAdded.push(groupLabel);
+
+    if (apply) {
       try {
-        c.person = People.People.get(c.person.resourceName, { personFields: 'biographies' });
-        writeMemberIdToContact_(c.person, row.memberId);
-        c.memberId = row.memberId;
-        written++;
-        Utilities.sleep(700); // stay under the People API write rate limit
+        if (newNotes !== c.notes) {
+          writeMemberIdToContact_(c.person, row.memberId, altIds);
+          c.notes = newNotes;
+          c.memberId = row.memberId;
+          written++;
+          Utilities.sleep(1000); // People API write rate limit
+        }
+        result.labelsAdded.forEach(function (label) {
+          queueLabel(label, c.person.resourceName);
+          c.labelsLower.push(label.toLowerCase());
+        });
+        if (hqYear && result.labelsAdded.indexOf(yearLabel) !== -1) c.maxYear = hqYear;
       } catch (err) {
         result.action = 'error';
         result.error = String(err && err.message ? err.message : err);
@@ -550,11 +595,95 @@ function importRoster_(request) {
     report.push(result);
   });
 
+  var labeled = 0;
+  if (apply) {
+    Object.keys(labelAdds).forEach(function (label) {
+      var groupResource = groupResourceName_(label, groupNames);
+      var people = labelAdds[label].filter(function (p, i, all) { return all.indexOf(p) === i; });
+      for (var i = 0; i < people.length; i += 500) {
+        People.ContactGroups.Members.modify({ resourceNamesToAdd: people.slice(i, i + 500) }, groupResource);
+        labeled += Math.min(500, people.length - i);
+        Utilities.sleep(1000);
+      }
+    });
+  }
+
   var refresh = null;
-  if (apply && written) {
+  if (apply && request.refresh !== false) {
     refresh = syncMembersFromContacts_(); // caller (doPost) already holds the script lock
   }
-  return { ok: true, applied: apply, written: written, refresh: refresh, report: report };
+  return { ok: true, applied: apply, written: written, created: created, labeled: labeled, refresh: refresh, report: report };
+}
+
+function rosterContact_(person, groupNames) {
+  var labels = (person.memberships || [])
+    .map(function (m) { return m.contactGroupMembership && groupNames[m.contactGroupMembership.contactGroupResourceName]; })
+    .filter(function (name) { return name; });
+  var years = labels.map(function (l) { var m = /^(\d{4})\b/.exec(l); return m ? Number(m[1]) : 0; }).filter(Boolean);
+  var labelsLower = labels.map(function (l) { return String(l).toLowerCase(); });
+  var names = (person.names || [])[0] || {};
+  var notes = ((person.biographies || [])[0] || {}).value || '';
+  var idMatch = /Member\s*(?:ID|#|No\.?|Number)\s*[:#]?\s*([A-Za-z0-9-]+)/i.exec(notes);
+  return {
+    person: person,
+    name: names.displayName || [names.givenName, names.familyName].filter(Boolean).join(' '),
+    nameTokens: nameTokens_([names.givenName, names.middleName, names.familyName, names.displayName].join(' ')),
+    familyTokens: nameTokens_(names.familyName || ''),
+    givenTokens: nameTokens_(names.givenName || ''),
+    emails: (person.emailAddresses || []).map(function (e) { return String(e.value || '').toLowerCase().trim(); })
+      .filter(function (e) { return e && e !== POST_EMAIL; }),
+    phones: (person.phoneNumbers || []).map(function (p) { return phoneKey_(p.value); }).filter(Boolean),
+    labelsLower: labelsLower,
+    maxYear: years.length ? Math.max.apply(null, years) : null,
+    lifetime: labelsLower.indexOf('pufl') !== -1,
+    isMember: years.length > 0 || labelsLower.indexOf('pufl') !== -1,
+    notes: notes,
+    memberId: idMatch ? idMatch[1] : ''
+  };
+}
+
+/** Existing "<year> Renew..." label if there is one, else "<year> Renewed". */
+function yearLabelName_(year, groupNames) {
+  var names = Object.keys(groupNames).map(function (k) { return String(groupNames[k]); });
+  var forYear = names.filter(function (n) { return n.indexOf(String(year) + ' ') === 0; });
+  var renewal = forYear.filter(function (n) { return /renew/i.test(n); });
+  return renewal[0] || String(year) + ' Renewed';
+}
+
+function groupResourceName_(label, groupNames) {
+  var existing = Object.keys(groupNames).filter(function (k) { return String(groupNames[k]).toLowerCase() === label.toLowerCase(); });
+  if (existing.length) return existing[0];
+  var group = People.ContactGroups.create({ contactGroup: { name: label } });
+  groupNames[group.resourceName] = label;
+  return group.resourceName;
+}
+
+function newRosterContact_(row, altIds) {
+  // HQ names are "Last, [Suffix,] First [Middle]".
+  var parts = String(row.name || '').split(',').map(function (p) { return p.trim(); });
+  var name = { familyName: titleCase_(parts[0]), givenName: titleCase_(parts[parts.length - 1]) };
+  if (parts.length > 2) name.honorificSuffix = parts.slice(1, -1).join(' ');
+  var body = {
+    names: [name],
+    biographies: [{
+      contentType: 'TEXT_PLAIN',
+      value: memberIdNotes_('', row.memberId, altIds) + '\nMembership Type: ' + (row.roster === 'SAL' ? 'SAL' : 'Legion') +
+        '\nAdded from the National HQ roster on ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd')
+    }]
+  };
+  var email = String(row.email || '').trim();
+  if (email && email.toLowerCase() !== POST_EMAIL && /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) {
+    body.emailAddresses = [{ value: email }];
+  }
+  if (phoneKey_(row.phone)) body.phoneNumbers = [{ value: String(row.phone).trim() }];
+  return body;
+}
+
+function titleCase_(text) {
+  var s = String(text || '').trim();
+  // HQ sometimes sends ALL CAPS or all lower case; leave mixed case alone.
+  if (s !== s.toUpperCase() && s !== s.toLowerCase()) return s;
+  return s.toLowerCase().replace(/(^|[\s'-])([a-z])/g, function (m, sep, ch) { return sep + ch.toUpperCase(); });
 }
 
 function findRosterContact_(row, contacts) {
@@ -565,16 +694,25 @@ function findRosterContact_(row, contacts) {
   var lastMatches = function (c) {
     return last.length > 0 && last.every(function (t) { return c.familyTokens.indexOf(t) !== -1 || c.nameTokens.indexOf(t) !== -1; });
   };
+  var firstMatches = function (c) {
+    return !!first && (c.givenTokens.indexOf(first) !== -1 || c.nameTokens.indexOf(first) !== -1);
+  };
+  // Same first name and a last name within a few letters (Guitierrez/Gutierrez).
+  var closeName = function (c) {
+    var hqLast = last.join('');
+    var contactLast = (c.familyTokens.length ? c.familyTokens : c.nameTokens.slice(-1)).join('');
+    return firstMatches(c) && hqLast.length >= 4 && editDistance_(hqLast, contactLast) <= 3;
+  };
 
-  // An email or phone match must also agree on the last name; HQ data has
-  // shared and mistyped emails that would otherwise land on the wrong person.
+  // An email or phone match must also agree on the name; HQ data has shared
+  // and mistyped emails that would otherwise land on the wrong person.
   var email = String(row.email || '').toLowerCase().trim();
   if (email && email !== POST_EMAIL) {
     var byEmail = contacts.filter(function (c) { return c.emails.indexOf(email) !== -1; });
     if (byEmail.length === 1) {
-      return lastMatches(byEmail[0])
-        ? { contact: byEmail[0], method: 'email' }
-        : { method: 'email-name-mismatch', candidates: [byEmail[0].name] };
+      if (lastMatches(byEmail[0])) return { contact: byEmail[0], method: 'email' };
+      if (closeName(byEmail[0])) return { contact: byEmail[0], method: 'email-close-name' };
+      return { method: 'email-name-mismatch', candidates: [byEmail[0].name] };
     }
   }
   var phone = phoneKey_(row.phone);
@@ -584,10 +722,7 @@ function findRosterContact_(row, contacts) {
   }
 
   if (!last.length || !first) return { method: 'not-found' };
-  var byName = contacts.filter(function (c) {
-    var firstOk = c.givenTokens.indexOf(first) !== -1 || c.nameTokens.indexOf(first) !== -1;
-    return lastMatches(c) && firstOk;
-  });
+  var byName = contacts.filter(function (c) { return lastMatches(c) && firstMatches(c); });
   if (byName.length === 1) return { contact: byName[0], method: 'name' };
   if (byName.length > 1) {
     // Prefer the one labelled as a member if exactly one is.
@@ -598,9 +733,25 @@ function findRosterContact_(row, contacts) {
   return { method: 'not-found' };
 }
 
+function editDistance_(a, b) {
+  var prev = [];
+  for (var j = 0; j <= b.length; j++) prev[j] = j;
+  for (var i = 1; i <= a.length; i++) {
+    var cur = [i];
+    for (var k = 1; k <= b.length; k++) {
+      cur[k] = Math.min(prev[k] + 1, cur[k - 1] + 1, prev[k - 1] + (a[i - 1] === b[k - 1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
 function nameTokens_(text) {
   var suffixes = { jr: 1, sr: 1, ii: 1, iii: 1, iv: 1 };
+  // Drop apostrophes first so O'Rourke and Orourke compare equal.
+  var apostrophes = new RegExp("['`" + String.fromCharCode(8217) + ']', 'g');
   return String(text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(apostrophes, '')
     .replace(/[^a-z\s-]/g, ' ').split(/[\s-]+/)
     .filter(function (t) { return t.length > 1 && !suffixes[t]; });
 }
