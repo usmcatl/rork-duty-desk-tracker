@@ -31,6 +31,16 @@ Push-Location $buildDir
 try {
     $version = (Get-Content app.json -Raw | ConvertFrom-Json).expo.version
 
+    # Native modules leave build output inside node_modules. Gradle can't
+    # always delete it on the next build (paths past Windows' 260-character
+    # limit), so clear it first with a long-path-safe delete. It's regenerated.
+    Write-Host "Clearing previous native build output..."
+    $staleBuildDirs = @(Get-ChildItem 'node_modules' -Directory -Recurse -Depth 3 -Filter 'build' -ErrorAction SilentlyContinue |
+        Where-Object { $_.Parent.Name -in @('android', 'expo-module-gradle-plugin') -or $_.Parent.Parent.Name -eq 'gradle-plugin' })
+    foreach ($dir in $staleBuildDirs) {
+        cmd /c rd /s /q "\\?\$($dir.FullName)" 2>$null
+    }
+
     Write-Host "Generating native Android project..."
     npx expo prebuild --platform android --clean
     if ($LASTEXITCODE -ne 0) { throw 'expo prebuild failed' }
