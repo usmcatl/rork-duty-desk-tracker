@@ -5,6 +5,13 @@ import Colors from '@/constants/colors';
 import Button from '@/components/Button';
 import { useSyncStore } from '@/store/syncStore';
 
+// The Post's sync web app (Apps Script deployment owned by americanlegionchapala@gmail.com).
+// Pre-filled so a new tablet only needs the sync token. The token is NOT built
+// in: the APK and this repository are public, and the token grants full access
+// to the member data. It lives in the Post's private "App Sync Configuration" doc.
+const DEFAULT_SYNC_URL =
+  'https://script.google.com/macros/s/AKfycbz4zZhNSmh9aBAlPQCq2TdzAJzfSpEA3MWwaQrP2PpJEE-9Q-v92K_UnCI3XieHcRX5/exec';
+
 export default function SheetSyncCard() {
   const {
     endpointUrl,
@@ -18,7 +25,7 @@ export default function SheetSyncCard() {
     syncNow,
   } = useSyncStore();
 
-  const [urlInput, setUrlInput] = useState(endpointUrl);
+  const [urlInput, setUrlInput] = useState(endpointUrl || DEFAULT_SYNC_URL);
   const [tokenInput, setTokenInput] = useState(token);
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -77,7 +84,7 @@ export default function SheetSyncCard() {
           style: 'destructive',
           onPress: () => {
             disconnect();
-            setUrlInput('');
+            setUrlInput(DEFAULT_SYNC_URL);
             setTokenInput('');
           },
         },
