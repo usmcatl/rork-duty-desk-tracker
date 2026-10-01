@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Alert, Modal, Image, Platform, StatusBar } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Alert, Modal, Image, Platform, StatusBar, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
@@ -24,6 +24,10 @@ export default function DashboardScreen() {
     ? Math.max(insets.top, StatusBar.currentHeight ?? 0)
     : insets.top;
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  // Explicit size so the image box hugs the logo (a percentage width plus
+  // aspectRatio left large empty bands above and below it on the tablet).
+  const { width: screenWidth } = useWindowDimensions();
+  const logoWidth = Math.min(screenWidth - 64, 300);
   const { equipment, checkoutRecords, getOverdueEquipment } = useEquipmentStore();
   const { packages } = usePackageStore();
   const { members, getMemberById } = useMemberStore();
@@ -337,14 +341,14 @@ export default function DashboardScreen() {
       
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.content, { paddingTop: topInset + 16 }]}
+        contentContainerStyle={[styles.content, { paddingTop: topInset + 8 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Brand header */}
         <View style={styles.brandHeader}>
           <Image
             source={LEGION_LOGO}
-            style={styles.brandLogo}
+            style={{ width: logoWidth, height: logoWidth / LOGO_ASPECT_RATIO }}
             resizeMode="contain"
             accessibilityLabel="American Legion"
           />
@@ -751,18 +755,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  brandLogo: {
-    width: '78%',
-    maxWidth: 360,
-    aspectRatio: LOGO_ASPECT_RATIO,
-  },
   brandTitle: {
     fontSize: 22,
     fontWeight: '700',
     color: Colors.light.primary,
     textAlign: 'center',
     letterSpacing: 0.3,
-    marginTop: 4,
+    marginTop: 10,
   },
   brandStripe: {
     flexDirection: 'row',
