@@ -11,7 +11,7 @@ import { useShiftStore } from '@/store/shiftStore';
 import EquipmentNameplate from '@/components/EquipmentNameplate';
 import PackageCard from '@/components/PackageCard';
 import Button from '@/components/Button';
-import { Plus, Package, CheckSquare, Search, User, Users, ChevronRight, X, Package2, Clock, UserPlus, Settings, AlertTriangle, Calendar, Tablet, RefreshCw } from 'lucide-react-native';
+import { Plus, Package, CheckSquare, Search, User, Users, ChevronRight, X, Package2, Clock, Settings, AlertTriangle, Calendar, Tablet, RefreshCw } from 'lucide-react-native';
 
 const LEGION_LOGO = require('@/assets/images/american-legion-logo.png');
 const LOGO_ASPECT_RATIO = 870 / 340;
@@ -37,7 +37,6 @@ export default function DashboardScreen() {
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [showOverdueDialog, setShowOverdueDialog] = useState(false);
   const [showChangeoverPrompt, setShowChangeoverPrompt] = useState(false);
-  const [showAdvisoryDialog, setShowAdvisoryDialog] = useState(false);
   const [lastOverdueCheck10am, setLastOverdueCheck10am] = useState<Date | null>(null);
   const [lastOverdueCheck1pm, setLastOverdueCheck1pm] = useState<Date | null>(null);
   
@@ -156,10 +155,6 @@ export default function DashboardScreen() {
     router.push('/add-package');
   };
   
-  const handleAddMemberAttempt = () => {
-    setShowAdvisoryDialog(true);
-  };
-  
   const handleMemberPress = (id: string) => {
     setShowMemberSearch(false);
     setMemberSearchQuery('');
@@ -208,35 +203,6 @@ export default function DashboardScreen() {
   
   return (
     <View style={styles.container}>
-      {/* Advisory Dialog */}
-      <Modal
-        visible={showAdvisoryDialog}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowAdvisoryDialog(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <AlertTriangle size={24} color={Colors.light.flagRed} />
-              <Text style={styles.modalTitle}>Feature Pending Department Advisory</Text>
-            </View>
-            
-            <Text style={styles.modalMessage}>
-              Member management features are currently pending department advisory approval.
-            </Text>
-            
-            <View style={styles.modalButtons}>
-              <Button
-                title="Understood"
-                onPress={() => setShowAdvisoryDialog(false)}
-                style={styles.modalButton}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       {/* Shift Changeover Prompt */}
       <Modal
         visible={showChangeoverPrompt}
@@ -714,25 +680,26 @@ export default function DashboardScreen() {
       </ScrollView>
       
       <View style={styles.fabContainer}>
-        <TouchableOpacity 
-          style={[styles.fab, styles.tertiaryFab, styles.disabledFab]}
-          onPress={handleAddMemberAttempt}
-        >
-          <UserPlus size={20} color={Colors.light.subtext} />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.fab, styles.secondaryFab]}
+        <TouchableOpacity
+          style={[styles.fab, styles.packageFab]}
           onPress={handleAddPackage}
+          accessibilityRole="button"
+          accessibilityLabel="Add a package"
         >
+          <Plus size={20} color="#fff" />
           <Package2 size={20} color="#fff" />
+          <Text style={[styles.fabText, { color: '#fff' }]}>Package</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.fab}
+
+        <TouchableOpacity
+          style={[styles.fab, styles.equipmentFab]}
           onPress={handleAddEquipment}
+          accessibilityRole="button"
+          accessibilityLabel="Add equipment"
         >
-          <Package size={24} color="#fff" />
+          <Plus size={20} color={Colors.light.primary} />
+          <Package size={20} color={Colors.light.primary} />
+          <Text style={[styles.fabText, { color: Colors.light.primary }]}>Equipment</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -749,7 +716,8 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 80,
+    // Room for the two add buttons so they don't cover the last items.
+    paddingBottom: 150,
   },
   brandHeader: {
     alignItems: 'center',
@@ -1130,37 +1098,31 @@ const styles = StyleSheet.create({
     right: 24,
     alignItems: 'flex-end',
   },
+  // Both add buttons share one size so neither looks more important.
   fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.light.gold,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: Colors.light.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    justifyContent: 'center',
+    width: 168,
+    height: 52,
+    borderRadius: 26,
+    marginTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
-    marginBottom: 12,
   },
-  secondaryFab: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#000000',
-    shadowColor: Colors.light.shadow,
+  packageFab: {
+    backgroundColor: Colors.light.primary,
   },
-  tertiaryFab: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.light.flagRed,
-    shadowColor: Colors.light.shadow,
+  equipmentFab: {
+    backgroundColor: Colors.light.gold,
   },
-  disabledFab: {
-    backgroundColor: Colors.light.border,
-    shadowColor: Colors.light.shadow,
+  fabText: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginLeft: 6,
   },
   modalOverlay: {
     flex: 1,

@@ -1,10 +1,11 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Equipment } from '@/types/equipment';
 import { useEquipmentStore } from '@/store/equipmentStore';
 import { useMemberStore } from '@/store/memberStore';
 import Colors from '@/constants/colors';
+import SyncedImage from '@/components/SyncedImage';
 import { Info, CheckCircle, AlertCircle, AlertTriangle, Calendar, User } from 'lucide-react-native';
 
 interface EquipmentCardProps {
@@ -59,8 +60,8 @@ export default function EquipmentCard({ equipment }: EquipmentCardProps) {
       ]}
       onPress={handlePress}
     >
-      <Image 
-        source={{ uri: equipment.imageUri }} 
+      <SyncedImage
+        uri={equipment.imageUri}
         style={styles.image}
         resizeMode="cover"
       />

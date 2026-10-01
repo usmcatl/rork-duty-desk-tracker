@@ -70,8 +70,6 @@ export default function AddPackageScreen() {
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [filteredMembers, setFilteredMembers] = useState(members);
   
-  // Advisory dialog
-  const [showAdvisoryDialog, setShowAdvisoryDialog] = useState(false);
   
   // Get duty officers from settings
   const dutyOfficers = getDutyOfficers();
@@ -166,10 +164,6 @@ export default function AddPackageScreen() {
     } finally {
       setIsCapturing(false);
     }
-  };
-  
-  const handleCreateNewMemberAttempt = () => {
-    setShowAdvisoryDialog(true);
   };
   
   const handleSubmit = () => {
@@ -306,35 +300,6 @@ export default function AddPackageScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Add New Package' }} />
       
-      {/* Advisory Dialog */}
-      <Modal
-        visible={showAdvisoryDialog}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowAdvisoryDialog(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <AlertTriangle size={24} color={Colors.light.flagRed} />
-              <Text style={styles.modalTitle}>Feature Pending Department Advisory</Text>
-            </View>
-            
-            <Text style={styles.modalMessage}>
-              Member management features are currently pending department advisory approval.
-            </Text>
-            
-            <View style={styles.modalButtons}>
-              <Button
-                title="Understood"
-                onPress={() => setShowAdvisoryDialog(false)}
-                style={styles.modalButton}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-      
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.content}
@@ -378,16 +343,6 @@ export default function AddPackageScreen() {
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
-                  
-                  <TouchableOpacity
-                    style={[styles.createMemberOption, styles.disabledCreateMemberOption]}
-                    onPress={handleCreateNewMemberAttempt}
-                  >
-                    <Plus size={16} color={Colors.light.subtext} />
-                    <Text style={[styles.createMemberText, styles.disabledCreateMemberText]}>
-                      Create new member: "{recipientName}" (Pending Advisory)
-                    </Text>
-                  </TouchableOpacity>
                 </View>
               )}
             </View>
@@ -403,7 +358,7 @@ export default function AddPackageScreen() {
 
             {!selectedMemberId && recipientName.trim() && (
               <Text style={styles.memberWarning}>
-                Please select an existing member from the dropdown. New member creation is pending department advisory.
+                Please select a member from the list.
               </Text>
             )}
           </View>

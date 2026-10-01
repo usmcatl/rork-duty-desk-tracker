@@ -200,6 +200,27 @@ async function postToSheet(endpointUrl: string, body: Record<string, unknown>): 
   }
 }
 
+/**
+ * Downloads a backed-up photo from the Post's Drive folder by file name.
+ * Returns base64 data, or null when sync isn't connected or the photo was
+ * never backed up.
+ */
+export async function fetchPhotoFromDrive(name: string): Promise<string | null> {
+  const { endpointUrl, token } = useSyncStore.getState();
+  if (!endpointUrl || !token) return null;
+  try {
+    const response = await postToSheet(endpointUrl, { action: 'getPhoto', token, name });
+    return (response as SyncResponse & { data?: string }).data || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Marks a photo as already in Drive so the uploader skips it. */
+export function markPhotoBackedUp(uri: string) {
+  useSyncStore.setState((state) => ({ uploadedPhotos: { ...state.uploadedPhotos, [uri]: 'drive' } }));
+}
+
 function waitForHydration(): Promise<void> {
   const stores = [useEquipmentStore, useMemberStore, usePackageStore, useShiftStore, useSyncStore];
   return Promise.all(

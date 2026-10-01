@@ -6,10 +6,10 @@ import Button from '@/components/Button';
 import { useSyncStore } from '@/store/syncStore';
 
 // The Post's sync web app (Apps Script deployment owned by americanlegionchapala@gmail.com).
-// Pre-filled so a new tablet only needs the sync token. The token is NOT built
+// Built in, so a new tablet only needs the sync token. The token is NOT built
 // in: the APK and this repository are public, and the token grants full access
 // to the member data. It lives in the Post's private "App Sync Configuration" doc.
-const DEFAULT_SYNC_URL =
+const SYNC_URL =
   'https://script.google.com/macros/s/AKfycbz4zZhNSmh9aBAlPQCq2TdzAJzfSpEA3MWwaQrP2PpJEE-9Q-v92K_UnCI3XieHcRX5/exec';
 
 export default function SheetSyncCard() {
@@ -25,26 +25,21 @@ export default function SheetSyncCard() {
     syncNow,
   } = useSyncStore();
 
-  const [urlInput, setUrlInput] = useState(endpointUrl || DEFAULT_SYNC_URL);
   const [tokenInput, setTokenInput] = useState(token);
   const [isConnecting, setIsConnecting] = useState(false);
 
   const isConnected = Boolean(endpointUrl && token);
 
   const handleConnect = async () => {
-    if (!urlInput.trim().startsWith('https://script.google.com/')) {
-      Alert.alert('Invalid URL', 'Paste the Apps Script web app URL. It starts with https://script.google.com/ and ends with /exec.');
-      return;
-    }
     if (!tokenInput.trim()) {
-      Alert.alert('Missing Token', 'Enter the sync token shown when you ran setup() in the Apps Script editor.');
+      Alert.alert('Missing Token', 'Paste the sync token from the Post\'s "App Sync Configuration" document in Google Drive.');
       return;
     }
 
     setIsConnecting(true);
     try {
-      await testConnection(urlInput, tokenInput);
-      configure(urlInput, tokenInput);
+      await testConnection(SYNC_URL, tokenInput);
+      configure(SYNC_URL, tokenInput);
       const result = await syncNow();
       Alert.alert(
         'Connected',
@@ -84,7 +79,6 @@ export default function SheetSyncCard() {
           style: 'destructive',
           onPress: () => {
             disconnect();
-            setUrlInput(DEFAULT_SYNC_URL);
             setTokenInput('');
           },
         },
@@ -138,24 +132,12 @@ export default function SheetSyncCard() {
         </>
       ) : (
         <>
-          <Text style={styles.label}>Web App URL</Text>
-          <TextInput
-            style={styles.input}
-            value={urlInput}
-            onChangeText={setUrlInput}
-            placeholder="https://script.google.com/macros/s/.../exec"
-            placeholderTextColor={Colors.light.subtext}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-          />
-
           <Text style={styles.label}>Sync Token</Text>
           <TextInput
             style={styles.input}
             value={tokenInput}
             onChangeText={setTokenInput}
-            placeholder="Token from setup()"
+            placeholder="Paste the token from App Sync Configuration"
             placeholderTextColor={Colors.light.subtext}
             autoCapitalize="none"
             autoCorrect={false}

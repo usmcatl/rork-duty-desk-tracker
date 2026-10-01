@@ -68,6 +68,15 @@ function doPost(e) {
     return json_({ ok: false, error: 'Wrong sync token' });
   }
 
+  // Read-only; doesn't need to wait for other syncs to finish.
+  if (request.action === 'getPhoto') {
+    try {
+      return json_(getPhoto_(request));
+    } catch (err) {
+      return json_({ ok: false, error: String(err && err.message ? err.message : err) });
+    }
+  }
+
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) {
     return json_({ ok: false, error: 'The sheet is busy with another sync. Try again shortly.' });
@@ -772,6 +781,19 @@ function stableStringify_(value) {
     }).join(',') + '}';
   }
   return JSON.stringify(value);
+}
+
+/**
+ * Returns a backed-up photo by file name so a tablet that doesn't have it
+ * (another tablet took it, or the app was reinstalled) can show it.
+ */
+function getPhoto_(request) {
+  var name = String(request.name || '').replace(/[\\/]/g, '_');
+  if (!name) return { ok: false, error: 'Missing photo name' };
+  var files = getPhotoFolder_().getFilesByName(name);
+  if (!files.hasNext()) return { ok: false, error: 'Photo not found' };
+  var blob = files.next().getBlob();
+  return { ok: true, mimeType: blob.getContentType(), data: Utilities.base64Encode(blob.getBytes()) };
 }
 
 function getSheet_(table) {

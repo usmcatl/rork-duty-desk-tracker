@@ -6,11 +6,11 @@ import {
   ScrollView, 
   TouchableOpacity, 
   Alert,
-  Image,
   Linking
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import Colors from '@/constants/colors';
+import SyncedImage from '@/components/SyncedImage';
 import { usePackageStore } from '@/store/packageStore';
 import { useMemberStore } from '@/store/memberStore';
 import { useEquipmentStore } from '@/store/equipmentStore';
@@ -264,17 +264,17 @@ export default function PackageDetailScreen() {
           <View style={styles.photoGrid}>
             <View style={styles.photoItem}>
               <Text style={styles.photoLabel}>Package</Text>
-              <Image source={{ uri: packageItem.packagePhotoUri }} style={styles.photo} />
+              <SyncedImage uri={packageItem.packagePhotoUri} style={styles.photo} />
             </View>
             
             <View style={styles.photoItem}>
               <Text style={styles.photoLabel}>Label</Text>
-              <Image source={{ uri: packageItem.labelPhotoUri }} style={styles.photo} />
+              <SyncedImage uri={packageItem.labelPhotoUri} style={styles.photo} />
             </View>
             
             <View style={styles.photoItem}>
               <Text style={styles.photoLabel}>Storage</Text>
-              <Image source={{ uri: packageItem.storagePhotoUri }} style={styles.photo} />
+              <SyncedImage uri={packageItem.storagePhotoUri} style={styles.photo} />
             </View>
           </View>
         </View>

@@ -6,28 +6,22 @@ import {
   ScrollView, 
   TouchableOpacity, 
   TextInput,
-  Alert,
-  Modal
+  Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
 import { matchesMemberSearch, memberStatusColor, memberSubtitle } from '@/utils/memberUtils';
 import { useSyncStore } from '@/store/syncStore';
 import { MemberStatus } from '@/types/member';
-
-const CONTACTS_ROSTER_MESSAGE =
-  "Members come from the Post's Google Contacts (americanlegionchapala@gmail.com). To add or renew someone, update their contact and give them a year label such as '2026 Renewed'. The app picks up changes automatically each day, or tap Sync Now.";
 import { useMemberStore } from '@/store/memberStore';
 import EmptyState from '@/components/EmptyState';
-import Button from '@/components/Button';
-import { Plus, Search, Filter, User, Phone, Calendar, ChevronRight, Users, RefreshCw, Check, Shield, Activity, AlertTriangle } from 'lucide-react-native';
+import { Search, Filter, User, Phone, Calendar, ChevronRight, Users, RefreshCw, Check, Shield, Activity } from 'lucide-react-native';
 
 export default function MembersScreen() {
   const router = useRouter();
   const { members } = useMemberStore();
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [showAdvisoryDialog, setShowAdvisoryDialog] = useState(false);
   // View filter only: hides non-Active members from the list, changes no data.
   const [activeOnly, setActiveOnly] = useState(false);
 
@@ -42,10 +36,6 @@ export default function MembersScreen() {
       member.status.toLowerCase().includes(q) ||
       member.group.toLowerCase().includes(q);
   });
-
-  const handleAddMemberAttempt = () => {
-    setShowAdvisoryDialog(true);
-  };
 
   const handleSyncNow = async () => {
     if (!endpointUrl) {
@@ -75,44 +65,6 @@ export default function MembersScreen() {
   if (members.length === 0) {
     return (
       <View style={styles.container}>
-        {/* Advisory Dialog */}
-        <Modal
-          visible={showAdvisoryDialog}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowAdvisoryDialog(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-              <View style={styles.modalHeader}>
-                <AlertTriangle size={24} color={Colors.light.flagRed} />
-                <Text style={styles.modalTitle}>Feature Pending Department Advisory</Text>
-              </View>
-              
-              <Text style={styles.modalMessage}>
-                {CONTACTS_ROSTER_MESSAGE}
-              </Text>
-
-              <View style={styles.modalButtons}>
-                <Button
-                  title="Sync Now"
-                  onPress={() => {
-                    setShowAdvisoryDialog(false);
-                    handleSyncNow();
-                  }}
-                  style={styles.modalButton}
-                />
-                <Button
-                  title="Cancel"
-                  onPress={() => setShowAdvisoryDialog(false)}
-                  variant="outline"
-                  style={styles.modalButton}
-                />
-              </View>
-            </View>
-          </View>
-        </Modal>
-
         <EmptyState
           title="No Members Found"
           description="Members come from the Post's Google Contacts through Google Sheets sync. Connect sync in Settings, then tap Sync Now."
@@ -126,44 +78,6 @@ export default function MembersScreen() {
   
   return (
     <View style={styles.container}>
-      {/* Advisory Dialog */}
-      <Modal
-        visible={showAdvisoryDialog}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowAdvisoryDialog(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <AlertTriangle size={24} color={Colors.light.flagRed} />
-              <Text style={styles.modalTitle}>Feature Pending Department Advisory</Text>
-            </View>
-            
-            <Text style={styles.modalMessage}>
-              {CONTACTS_ROSTER_MESSAGE}
-            </Text>
-
-            <View style={styles.modalButtons}>
-              <Button
-                title="Sync Now"
-                onPress={() => {
-                  setShowAdvisoryDialog(false);
-                  handleSyncNow();
-                }}
-                style={styles.modalButton}
-              />
-              <Button
-                title="Cancel"
-                onPress={() => setShowAdvisoryDialog(false)}
-                variant="outline"
-                style={styles.modalButton}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
           <Search size={20} color={Colors.light.subtext} style={styles.searchIcon} />
@@ -178,14 +92,6 @@ export default function MembersScreen() {
       </View>
       
       <View style={styles.actionsContainer}>
-        <TouchableOpacity 
-          style={[styles.actionButton, styles.disabledActionButton]}
-          onPress={handleAddMemberAttempt}
-        >
-          <Plus size={16} color={Colors.light.subtext} />
-          <Text style={[styles.actionButtonText, styles.disabledActionButtonText]}>Add Member</Text>
-        </TouchableOpacity>
-        
         <TouchableOpacity
           style={styles.actionButton}
           onPress={handleSyncNow}

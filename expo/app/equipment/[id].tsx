@@ -4,12 +4,12 @@ import {
   Text, 
   View, 
   ScrollView, 
-  Image, 
   TouchableOpacity, 
   Alert 
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import Colors from '@/constants/colors';
+import SyncedImage from '@/components/SyncedImage';
 import { useEquipmentStore } from '@/store/equipmentStore';
 import { useMemberStore } from '@/store/memberStore';
 import Button from '@/components/Button';
@@ -144,8 +144,8 @@ export default function EquipmentDetailScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Image 
-          source={{ uri: item.imageUri }} 
+        <SyncedImage
+          uri={item.imageUri}
           style={styles.image}
           resizeMode="cover"
         />

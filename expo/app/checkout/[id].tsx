@@ -45,7 +45,6 @@ export default function CheckoutScreen() {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMemberSearch, setShowMemberSearch] = useState(false);
-  const [showAdvisoryDialog, setShowAdvisoryDialog] = useState(false);
   const [notes, setNotes] = useState('');
   const [expectedReturnDate, setExpectedReturnDate] = useState<Date>(defaultReturnDate);
   const [selectedOfficer, setSelectedOfficer] = useState(dutyOfficers[0] || '');
@@ -195,10 +194,6 @@ export default function CheckoutScreen() {
     setShowMemberSearch(false);
   };
   
-  const handleAddNewMemberAttempt = () => {
-    setShowAdvisoryDialog(true);
-  };
-  
   return (
     <View style={styles.container}>
       <Stack.Screen 
@@ -211,36 +206,7 @@ export default function CheckoutScreen() {
         }} 
       />
       
-      {/* Advisory Dialog */}
-      <Modal
-        visible={showAdvisoryDialog}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowAdvisoryDialog(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <AlertTriangle size={24} color={Colors.light.flagRed} />
-              <Text style={styles.modalTitle}>Feature Pending Department Advisory</Text>
-            </View>
-            
-            <Text style={styles.modalMessage}>
-              Member management features are currently pending department advisory approval.
-            </Text>
-            
-            <View style={styles.modalButtons}>
-              <Button
-                title="Understood"
-                onPress={() => setShowAdvisoryDialog(false)}
-                style={styles.modalButton}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-      
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -338,7 +304,7 @@ export default function CheckoutScreen() {
                     No members found. Try a different search.
                   </Text>
                   <Text style={styles.emptyMembersSubtext}>
-                    Member creation is pending department advisory.
+                    Members come from the Post's Google Contacts.
                   </Text>
                 </View>
               }
@@ -350,12 +316,6 @@ export default function CheckoutScreen() {
                 onPress={() => setShowMemberSearch(false)}
                 variant="outline"
                 style={styles.memberSearchButton}
-              />
-              <Button
-                title="Add New Member"
-                onPress={handleAddNewMemberAttempt}
-                style={[styles.memberSearchButton, styles.disabledButton]}
-                disabled={true}
               />
             </View>
           </View>
